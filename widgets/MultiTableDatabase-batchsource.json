@@ -1,0 +1,53 @@
+{
+  "metadata": {
+    "spec-version": "1.4"
+  },
+  "configuration-groups": [
+    {
+      "label": "Multi Table Database Configuration",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Reference Name",
+          "name": "referenceName"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "JDBC Connection String",
+          "name": "connectionString"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "JDBC Plugin Name",
+          "name": "jdbcPluginName"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Database User Name",
+          "name": "user"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Database User Password",
+          "name": "password"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Name Pattern",
+          "name": "tableNamePattern"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Table Name Field",
+          "name": "tableNameField"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Enable Auto Commit",
+          "name": "enableAutoCommit"
+        }
+      ]
+    }
+  ],
+  "outputs": [ ]
+}

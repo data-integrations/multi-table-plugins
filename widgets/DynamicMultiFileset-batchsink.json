@@ -1,0 +1,23 @@
+{
+  "metadata": {
+    "spec-version": "1.4"
+  },
+  "configuration-groups": [
+    {
+      "label": "Dynamic Multi FileSet Sink Configuration",
+      "properties": [
+        {
+          "widget-type": "textbox",
+          "label": "Split Field",
+          "name": "splitField"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Field Delimiter",
+          "name": "delimiter"
+        }
+      ]
+    }
+  ],
+  "outputs": []
+}
