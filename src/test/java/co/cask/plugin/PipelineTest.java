@@ -163,7 +163,8 @@ public class PipelineTest extends HydratorTestBase {
     DataSetManager<PartitionedFileSet> multi2Manager = getDataset("MULTI2");
     DataSetManager<PartitionedFileSet> multi3Manager = getDataset("MULTI3");
 
-    PartitionKey partitionKey = PartitionKey.builder().addLongField("ingesttime", logicalStart).build();
+    long timePartition = TimeUnit.SECONDS.convert(logicalStart, TimeUnit.MILLISECONDS);
+    PartitionKey partitionKey = PartitionKey.builder().addLongField("ingesttime", timePartition).build();
 
     Assert.assertEquals(ImmutableSet.of("0,samuel", "1,dwayne"), getLines(multi1Manager.get(), partitionKey));
     Assert.assertEquals(ImmutableSet.of("samuel,sj@example.com", "dwayne,rock@j.com"),
