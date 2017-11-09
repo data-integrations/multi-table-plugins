@@ -17,3 +17,4 @@ out/
 
 # Checkstyle report
 examples/checkstyle_report.xml
+target/
