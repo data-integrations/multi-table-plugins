@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -51,8 +52,15 @@ public class MultiTableConf extends PluginConfig {
 
   @Macro
   @Nullable
-  @Description("A schema name to list all the tables from. By default all the schemas will be used in the listing call.")
-  private String schemaName;
+  @Description("A schema name pattern to read all the tables. By default all the schemas will " +
+      "be used in the listing call.")
+  private String schemaNamePattern;
+
+  @Macro
+  @Nullable
+  @Description("A pattern that defines which tables should be read from. " +
+               "Any table whose name matches the pattern will read. If not specified, all tables will be read.")
+  private String tableNamePattern;
 
   @Nullable
   @Description("The name of the field that holds the table name. " +
@@ -60,10 +68,12 @@ public class MultiTableConf extends PluginConfig {
   private String tableNameField;
 
 
+  @Macro
   @Nullable
   @Description("List of tables to fetch from the database. By default all the tables will be white listed")
   private String whiteList;
 
+  @Macro
   @Nullable
   @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be black listed")
   private String blackList;
@@ -102,8 +112,13 @@ public class MultiTableConf extends PluginConfig {
   }
 
   @Nullable
-  public String getSchemaName() {
-    return schemaName;
+  public String getTableNamePattern() {
+    return tableNamePattern;
+  }
+
+  @Nullable
+  public String getSchemaNamePattern() {
+    return schemaNamePattern;
   }
 
   @Nullable
@@ -115,7 +130,7 @@ public class MultiTableConf extends PluginConfig {
     if (whiteList != null && !whiteList.isEmpty()) {
       return Arrays.asList(whiteList.split(","));
     }
-    return Lists.newArrayList();
+    return new ArrayList<>();
   }
 
 
@@ -123,7 +138,7 @@ public class MultiTableConf extends PluginConfig {
     if (blackList != null && !blackList.isEmpty()) {
       return Arrays.asList(blackList.split(","));
     }
-    return Lists.newArrayList();
+    return new ArrayList<>();
   }
 
   /**

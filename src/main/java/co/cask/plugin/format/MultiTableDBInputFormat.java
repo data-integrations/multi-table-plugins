@@ -59,14 +59,17 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
 
     try (Connection connection = dbConf.getConnection()) {
       DatabaseMetaData dbMeta = connection.getMetaData();
-      ResultSet tables = dbMeta.getTables(null, dbConf.getSchemaName(), null, new String[] {"TABLE"});
+      ResultSet tables = dbMeta.getTables(null, dbConf.getSchemaNamePattern(), dbConf.getTableNamePattern(),
+          new String[] {"TABLE"});
       Map<String, Schema> tableSchemas = new HashMap<>();
       List<DBTableSplit> splits = new ArrayList<>();
       List<String> whiteList = dbConf.getWhiteList();
       List<String> blackList = dbConf.getBlackList();
       while (tables.next()) {
         String tableName = tables.getString("TABLE_NAME");
-        if (useTable(tableName, whiteList, blackList)) {
+        // If the table name exists in blacklist or when the whiteList is not empty and does not contain table name
+        // the table should not be read
+        if (!blackList.contains(tableName) && (whiteList.isEmpty() || whiteList.contains(tableName))) {
           long numRows = getTableRowCount(tableName, connection);
           Schema schema = getTableSchema(tableName, connection);
           tableSchemas.put(tableName, schema);
@@ -78,15 +81,6 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
     } finally {
       cleanup.destroy();
     }
-  }
-
-  private static boolean useTable(String tableName, List<String> whiteList, List<String> blackList) {
-    // If the table name exists in blacklist or when the whiteList is not empty and does not contain table name
-    // the table should not be read
-    if (blackList.contains(tableName) || (!whiteList.isEmpty() && !whiteList.contains(tableName))) {
-      return false;
-    }
-    return true;
   }
 
   @Override
