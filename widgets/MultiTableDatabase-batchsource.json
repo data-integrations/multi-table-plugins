@@ -33,8 +33,18 @@
         },
         {
           "widget-type": "textbox",
-          "label": "Table Name Pattern",
-          "name": "tableNamePattern"
+          "label": "Schema Name",
+          "name": "schemaName"
+        },
+        {
+          "widget-type": "csv",
+          "label": "White List of table Names",
+          "name": "whiteList"
+        },
+        {
+          "widget-type": "csv",
+          "label": "Black List of table Names",
+          "name": "blackList"
         },
         {
           "widget-type": "textbox",
