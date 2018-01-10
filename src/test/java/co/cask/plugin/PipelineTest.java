@@ -132,6 +132,13 @@ public class PipelineTest extends HydratorTestBase {
 
       stmt.execute("CREATE TABLE \"MULTI3\" (ITEM VARCHAR(32) NOT NULL, CODE INT)");
       stmt.execute("INSERT INTO \"MULTI3\" VALUES ('donut', 100), ('scotch', 707)");
+
+      stmt.execute("CREATE TABLE \"BLACKLIST1\" (ITEM VARCHAR(32) NOT NULL, CODE INT)");
+      stmt.execute("INSERT INTO \"BLACKLIST1\" VALUES ('orange', 100), ('newblack', 707)");
+
+      stmt.execute("CREATE TABLE \"BLACKLIST2\" (ITEM VARCHAR(32) NOT NULL, CODE INT)");
+      stmt.execute("INSERT INTO \"BLACKLIST2\" VALUES ('black', 100), ('mirror', 707)");
+
     }
 
     ETLBatchConfig config = ETLBatchConfig.builder("* * * * *")
@@ -140,7 +147,8 @@ public class PipelineTest extends HydratorTestBase {
                                                        .put("connectionString", CONNECTION_STRING)
                                                        .put("jdbcPluginName", "hypersql")
                                                        .put("referenceName", "seequol")
-                                                       .put("tableNamePattern", "MULTI%")
+                                                       .put("blackList", "BLACKLIST1,BLACKLIST2")
+                                                       .put("whiteList", "MULTI1,MULTI2,MULTI3")
                                                        .build())))
       .addStage(new ETLStage("sink1", MockSink.getPlugin("multiOutput")))
       .addStage(new ETLStage("sink2", new ETLPlugin("DynamicMultiFileset", BatchSink.PLUGIN_TYPE,
@@ -162,6 +170,12 @@ public class PipelineTest extends HydratorTestBase {
     DataSetManager<PartitionedFileSet> multi1Manager = getDataset("MULTI1");
     DataSetManager<PartitionedFileSet> multi2Manager = getDataset("MULTI2");
     DataSetManager<PartitionedFileSet> multi3Manager = getDataset("MULTI3");
+    DataSetManager<PartitionedFileSet> blacklist1 = getDataset("BLACKLIST1");
+    DataSetManager<PartitionedFileSet> blacklist2 = getDataset("BLACKLIST2");
+
+    Assert.assertNull(blacklist1.get());
+    Assert.assertNull(blacklist2.get());
+
 
     long timePartition = TimeUnit.SECONDS.convert(logicalStart, TimeUnit.MILLISECONDS);
     PartitionKey partitionKey = PartitionKey.builder().addLongField("ingesttime", timePartition).build();
