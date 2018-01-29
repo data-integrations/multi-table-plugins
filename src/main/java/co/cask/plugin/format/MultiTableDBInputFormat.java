@@ -76,20 +76,21 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
     try (Connection connection = dbConf.getConnection()) {
       DatabaseMetaData dbMeta = connection.getMetaData();
       ResultSet tables = dbMeta.getTables(null, dbConf.getSchemaNamePattern(), dbConf.getTableNamePattern(),
-          new String[] {"TABLE"});
+          new String[] {"TABLE", "TABLE_SCHEM"});
       Map<String, Schema> tableSchemas = new HashMap<>();
       List<DBTableSplit> splits = new ArrayList<>();
       List<String> whiteList = dbConf.getWhiteList();
       List<String> blackList = dbConf.getBlackList();
       while (tables.next()) {
         String tableName = tables.getString("TABLE_NAME");
+        String db = tables.getString("TABLE_SCHEM");
         // If the table name exists in blacklist or when the whiteList is not empty and does not contain table name
         // the table should not be read
         if (!blackList.contains(tableName) && (whiteList.isEmpty() || whiteList.contains(tableName))) {
-          long numRows = getTableRowCount(tableName, connection);
-          Schema schema = getTableSchema(tableName, connection);
+          long numRows = getTableRowCount(db, tableName, connection);
+          Schema schema = getTableSchema(db, tableName, connection);
           tableSchemas.put(tableName, schema);
-          splits.add(new DBTableSplit(tableName, numRows));
+          splits.add(new DBTableSplit(db, tableName, numRows));
         }
       }
       hConf.set(SPLITS_FIELD, GSON.toJson(splits));
@@ -116,7 +117,8 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
     try {
       Class<? extends Driver> driverClass = (Class<? extends Driver>) conf.getClassLoader().loadClass(driverClassname);
       DriverCleanup driverCleanup = Drivers.ensureJDBCDriverIsAvailable(driverClass, dbConf.getConnectionString());
-      return new DBTableRecordReader(dbConf, dbTableSplit.getTableName(), dbConf.getTableNameField(), driverCleanup);
+      return new DBTableRecordReader(dbConf, dbTableSplit.getDb(), dbTableSplit.getTableName(),
+          dbConf.getTableNameField(), driverCleanup);
     } catch (ClassNotFoundException e) {
       LOG.error("Could not load jdbc driver class {}", driverClassname);
       throw new IOException(e);
@@ -126,18 +128,18 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
     }
   }
 
-  private static long getTableRowCount(String tableName, Connection connection) throws SQLException {
+  private static long getTableRowCount(String db, String tableName, Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
+      try (ResultSet results = statement.executeQuery("SELECT COUNT(*) FROM " + db + "." + tableName)) {
         results.next();
         return results.getLong(1);
       }
     }
   }
 
-  private static Schema getTableSchema(String tableName, Connection connection) throws SQLException {
+  private static Schema getTableSchema(String db, String tableName, Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery("SELECT * FROM " + tableName + " WHERE 1 = 0")) {
+      try (ResultSet results = statement.executeQuery("SELECT * FROM " + db + "." + tableName + " WHERE 1 = 0")) {
         return Schema.recordOf(tableName, DBTypes.getSchemaFields(results));
       }
     }
