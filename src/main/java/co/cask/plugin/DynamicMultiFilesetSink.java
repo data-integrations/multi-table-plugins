@@ -55,6 +55,7 @@ import javax.annotation.Nullable;
   "this plugin will be used with the MultiTableDatabase source, which will set those pipeline arguments.")
 public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   public static final String TABLE_PREFIX = "multisink.";
+
   private final Conf conf;
 
   public DynamicMultiFilesetSink(Conf conf) {
@@ -70,7 +71,9 @@ public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWri
       if (!key.startsWith(TABLE_PREFIX)) {
         continue;
       }
-      String name = key.substring(TABLE_PREFIX.length());
+      String dbTableName = key.substring(TABLE_PREFIX.length());
+      //dbTableName is of the form db:table
+      String name = dbTableName.split(":")[1];
       Schema schema = Schema.parseJson(val);
 
       if (!context.datasetExists(name)) {

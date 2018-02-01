@@ -81,7 +81,11 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, Object, O
 			if (!key.startsWith(TABLE_PREFIX)) {
 				continue;
 			}
-			String name = key.substring(TABLE_PREFIX.length());
+			String dbTableName = key.substring(TABLE_PREFIX.length());
+			//dbTableName is of the form db:table
+			String [] parts = dbTableName.split(":");
+			String db = parts[0];
+			String name = parts[1];
 			Job job = JobUtils.createInstance();
 			Configuration conf = job.getConfiguration();
 
@@ -89,8 +93,7 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, Object, O
 			for (Map.Entry<String, String> entry : properties.entrySet()) {
 				conf.set(entry.getKey(), entry.getValue());
 			}
-
-			conf.set(FileOutputFormat.OUTDIR, String.format("%s/%s/%s/",config.adlsBasePath, name, config.pathSuffix));
+			conf.set(FileOutputFormat.OUTDIR, String.format("%s%s_%s%s",config.adlsBasePath, db, name, config.pathSuffix));
 			job.setOutputValueClass(NullWritable.class);
 				context.addOutput(Output.of(name,
 						new SinkOutputFormatProvider(TextOutputFormat.class.getName(), conf)));

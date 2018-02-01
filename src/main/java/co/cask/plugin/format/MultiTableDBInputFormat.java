@@ -40,15 +40,12 @@ import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Input format that reads from multiple tables in a database using JDBC. Similar to Hadoop's DBInputFormat.
  */
-public class MultiTableDBInputFormat extends InputFormat<NullWritable, StructuredRecord> {
+public class  MultiTableDBInputFormat extends InputFormat<NullWritable, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiTableDBInputFormat.class);
   private static final String CONF_FIELD = "multi.db.plugin.conf";
   private static final String DRIVER_FIELD = "multi.db.jdbc.connection";
@@ -62,10 +59,10 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
    * @param hConf the job configuration
    * @param dbConf the database conf
    * @param driverClass the JDBC driver class used to communicate with the database
-   * @return mapping from table name to table schema for all tables that will be read
+   * @return Collection of TableInfo containing DB, table and schema.
    */
-  public static Map<String, Schema> setInput(Configuration hConf, MultiTableConf dbConf,
-                                             Class<? extends Driver> driverClass)
+  public static Collection<TableInfo> setInput(Configuration hConf, MultiTableConf dbConf,
+                                               Class<? extends Driver> driverClass)
     throws SQLException, InstantiationException, IllegalAccessException {
 
     hConf.set(CONF_FIELD, GSON.toJson(dbConf));
@@ -77,7 +74,7 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
       DatabaseMetaData dbMeta = connection.getMetaData();
       ResultSet tables = dbMeta.getTables(null, dbConf.getSchemaNamePattern(), dbConf.getTableNamePattern(),
           new String[] {"TABLE", "TABLE_SCHEM"});
-      Map<String, Schema> tableSchemas = new HashMap<>();
+      Collection<TableInfo> tableInfos = new ArrayList<TableInfo>();
       List<DBTableSplit> splits = new ArrayList<>();
       List<String> whiteList = dbConf.getWhiteList();
       List<String> blackList = dbConf.getBlackList();
@@ -89,12 +86,12 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
         if (!blackList.contains(tableName) && (whiteList.isEmpty() || whiteList.contains(tableName))) {
           long numRows = getTableRowCount(db, tableName, connection);
           Schema schema = getTableSchema(db, tableName, connection);
-          tableSchemas.put(tableName, schema);
+          tableInfos.add(new TableInfo(db, tableName, schema));
           splits.add(new DBTableSplit(db, tableName, numRows));
         }
       }
       hConf.set(SPLITS_FIELD, GSON.toJson(splits));
-      return tableSchemas;
+      return tableInfos;
     } finally {
       cleanup.destroy();
     }
@@ -142,6 +139,19 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
       try (ResultSet results = statement.executeQuery("SELECT * FROM " + db + "." + tableName + " WHERE 1 = 0")) {
         return Schema.recordOf(tableName, DBTypes.getSchemaFields(results));
       }
+    }
+  }
+
+  public static class TableInfo {
+
+    public String tableName;
+    public String db;
+    public Schema schema;
+
+    public TableInfo(String db, String tableName, Schema schema) {
+      this.db = db;
+      this.tableName = tableName;
+      this.schema = schema;
     }
   }
 }
