@@ -55,10 +55,16 @@
           "widget-attributes": {
             "values": [
               "text",
-              "avro"
+              "avro",
+              "orc"
             ],
             "default": "text"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Split Field",
+          "name": "splitField"
         },
         {
           "widget-type": "textbox",

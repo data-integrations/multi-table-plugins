@@ -9,6 +9,7 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Structured Record to Avro converter
@@ -16,7 +17,7 @@ import java.util.Map;
 public class StructuredToAvroTransformer extends AbstractStructuredRecordTransformer<GenericRecord> {
 	private final Map<Integer, Schema> schemaCache;
 
-	public StructuredToAvroTransformer(co.cask.cdap.api.data.schema.Schema outputSchema) {
+	public StructuredToAvroTransformer(@Nullable co.cask.cdap.api.data.schema.Schema outputSchema) {
 		super(outputSchema);
 		this.schemaCache = Maps.newHashMap();
 	}

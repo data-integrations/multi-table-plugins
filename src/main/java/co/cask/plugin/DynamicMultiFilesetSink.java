@@ -84,6 +84,7 @@ public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWri
           .setOutputProperty(RecordFilterOutputFormat.FILTER_FIELD, conf.splitField)
           .setOutputProperty(RecordFilterOutputFormat.PASS_VALUE, name)
           .setOutputProperty(RecordFilterOutputFormat.DELIMITER, conf.delimiter)
+          .setOutputProperty(RecordFilterOutputFormat.ORIGINAL_SCHEMA, val)
           .setEnableExploreOnCreate(true)
           .setExploreFormat("text")
           .setExploreSchema(HiveSchemaConverter.toHiveSchema(schema))

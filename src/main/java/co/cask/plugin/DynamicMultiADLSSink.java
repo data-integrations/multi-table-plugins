@@ -15,22 +15,20 @@ import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.hydrator.common.batch.JobUtils;
 import co.cask.hydrator.common.batch.sink.SinkOutputFormatProvider;
+import co.cask.plugin.format.RecordFilterOutputFormat;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroJob;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 
 /**
@@ -39,22 +37,17 @@ import java.util.Map;
 @Plugin(type = BatchSink.PLUGIN_TYPE)
 @Name("DynamicMultiADLS")
 @Description("Writes to multiple partitioned file sets. File sets are partitioned by an ingesttime field " +
-		"that will be set to the logical start time of the pipeline run. The sink will write to the correct sink based " +
-		"on the value of a split field. For example, if the split field is configured to be 'tablename', any record " +
-		"with a 'tablename' field of 'xyz' will be written to file set 'xyz'. This plugin expects that the filesets " +
-		"to write to will be present in the pipeline arguments. Each table to write to must have an argument where " +
-		"the key is 'multisink.[name]' and the value is the schema for that fileset. Most of the time, " +
-		"this plugin will be used with the MultiTableDatabase source, which will set those pipeline arguments.")
-public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, Object, Object> {
+	"that will be set to the logical start time of the pipeline run. The sink will write to the correct sink based " +
+	"on the value of a split field. For example, if the split field is configured to be 'tablename', any record " +
+	"with a 'tablename' field of 'xyz' will be written to file set 'xyz'. This plugin expects that the filesets " +
+	"to write to will be present in the pipeline arguments. Each table to write to must have an argument where " +
+	"the key is 'multisink.[name]' and the value is the schema for that fileset. Most of the time, " +
+	"this plugin will be used with the MultiTableDatabase source, which will set those pipeline arguments.")
+public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
 	public static final String TABLE_PREFIX = "multisink.";
 
 	private static final Gson GSON = new Gson();
 	private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
-	private static final String AVRO = "avro";
-	private static final String TEXT = "text";
-
-	private StructuredToTextTransformer textTransformer;
-	private StructuredToAvroTransformer avroTransformer;
 
 	private Conf config;
 
@@ -65,22 +58,17 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, Object, O
 
 	@Override
 	public void initialize(BatchRuntimeContext context) throws Exception {
-		if (AVRO.equals(config.outputFormat)) {
-			avroTransformer = new StructuredToAvroTransformer(config.getSchema());
-		} else {
-			textTransformer = new StructuredToTextTransformer(config.getFieldDelimiter(), config.getSchema());
-		}
 		super.initialize(context);
 	}
 
 	@Override
 	public void prepareRun(BatchSinkContext context) throws Exception {
-
 		for (Map.Entry<String, String> argument : context.getArguments()) {
 			String key = argument.getKey();
 			if (!key.startsWith(TABLE_PREFIX)) {
 				continue;
 			}
+			String schema = argument.getValue();
 			String dbTableName = key.substring(TABLE_PREFIX.length());
 			//dbTableName is of the form db:table
 			String [] parts = dbTableName.split(":");
@@ -89,28 +77,36 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, Object, O
 			Job job = JobUtils.createInstance();
 			Configuration conf = job.getConfiguration();
 
+			conf.set(FileOutputFormat.OUTDIR, String.format("%s%s_%s%s",config.adlsBasePath, db, name, config.pathSuffix));
+			conf.set(RecordFilterOutputFormat.FORMAT, config.outputFormat);
+			conf.set(RecordFilterOutputFormat.FILTER_FIELD, config.getSplitField());
+			conf.set(RecordFilterOutputFormat.PASS_VALUE, name);
+			conf.set(RecordFilterOutputFormat.ORIGINAL_SCHEMA, schema);
 			Map<String, String> properties = config.getFileSystemProperties();
 			for (Map.Entry<String, String> entry : properties.entrySet()) {
 				conf.set(entry.getKey(), entry.getValue());
 			}
-			conf.set(FileOutputFormat.OUTDIR, String.format("%s%s_%s%s",config.adlsBasePath, db, name, config.pathSuffix));
 			job.setOutputValueClass(NullWritable.class);
-				context.addOutput(Output.of(name,
-						new SinkOutputFormatProvider(TextOutputFormat.class.getName(), conf)));
+			if (RecordFilterOutputFormat.AVRO.equals(config.outputFormat)) {
+				org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(schema);
+				AvroJob.setOutputKeySchema(job, avroSchema);
+			} else if (RecordFilterOutputFormat.ORC.equals(config.outputFormat)) {
+				StringBuilder builder = new StringBuilder();
+				co.cask.hydrator.common.HiveSchemaConverter.appendType(builder, Schema.parseJson(schema));
+				conf.set("orc.mapred.output.schema", builder.toString());
+			} else {
+				conf.set(RecordFilterOutputFormat.DELIMITER, config.getFieldDelimiter());
+			}
+
+			context.addOutput(Output.of(name, new SinkOutputFormatProvider(RecordFilterOutputFormat.class.getName(), conf)));
 		}
 	}
 
 	@Override
-	public void transform(StructuredRecord input, Emitter<KeyValue<Object, Object>> emitter)
-			throws Exception {
-		if (AVRO.equals(config.outputFormat)) {
-			emitter.emit(new KeyValue<>((Object) new AvroKey<>(avroTransformer.transform(input)),
-					(Object) NullWritable.get()));
-		} else {
-			emitter.emit(new KeyValue<>((Object) textTransformer.transform(input), (Object) NullWritable.get()));
-		}
+	public void transform(StructuredRecord input,
+												Emitter<KeyValue<NullWritable, StructuredRecord>> emitter) throws Exception {
+		emitter.emit(new KeyValue<>(NullWritable.get(), input));
 	}
-
 
 	/**
 	 * Plugin configuration properties.
@@ -161,6 +157,11 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, Object, O
 		@Description("Field delimiter for text format output files. Defaults to tab.")
 		public String fieldDelimiter;
 
+		@Nullable
+		@Description("The name of the field that will be used to determine which file to write to. " +
+			"Defaults to 'tablename'.")
+		private String splitField;
+
 		protected Map<String, String> getFileSystemProperties() {
 			Map<String, String> properties = getProps();
 			properties.put("fs.adl.impl", "org.apache.hadoop.fs.adl.AdlFileSystem");
@@ -193,6 +194,10 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, Object, O
 			} catch (IOException e) {
 				throw new IllegalArgumentException("Unable to parse output schema.");
 			}
+		}
+
+		public String getSplitField() {
+			return splitField == null ? "tablename" : splitField;
 		}
 
 		public String getFieldDelimiter() {
