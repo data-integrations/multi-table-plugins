@@ -39,6 +39,7 @@ import java.util.List;
  */
 public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRecord> {
   private final String tableName;
+  private final String db;
   private final String tableNameField;
   private final MultiTableConf dbConf;
   private final DriverCleanup driverCleanup;
@@ -51,9 +52,10 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   private Statement statement;
   private ResultSet results;
 
-  DBTableRecordReader(MultiTableConf dbConf, String tableName, String tableNameField,
+  DBTableRecordReader(MultiTableConf dbConf, String db, String tableName, String tableNameField,
                       DriverCleanup driverCleanup) {
     this.dbConf = dbConf;
+    this.db = db;
     this.tableName = tableName;
     this.tableNameField = tableNameField;
     this.driverCleanup = driverCleanup;
@@ -71,7 +73,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
       if (results == null) {
         connection = dbConf.getConnection();
         statement = connection.createStatement();
-        results = statement.executeQuery("SELECT * FROM " + tableName);
+        results = statement.executeQuery("SELECT * FROM " + db + "." + tableName);
         resultMeta = results.getMetaData();
         tableFields = DBTypes.getSchemaFields(results);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
