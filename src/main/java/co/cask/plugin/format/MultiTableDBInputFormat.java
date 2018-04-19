@@ -85,7 +85,8 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
         // the table should not be read
         if (!blackList.contains(tableName) && (whiteList.isEmpty() || whiteList.contains(tableName))) {
           long numRows = getTableRowCount(db, tableName, connection);
-          Schema schema = getTableSchema(db, tableName, connection);
+          boolean convertDate = dbConf.getDateFormat() == null ? false : true;
+          Schema schema = getTableSchema(db, tableName, connection, convertDate);
           tableInfos.add(new TableInfo(db, tableName, schema));
           splits.add(new DBTableSplit(db, tableName, numRows));
         }
@@ -134,10 +135,11 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
     }
   }
 
-  private static Schema getTableSchema(String db, String tableName, Connection connection) throws SQLException {
+  private static Schema getTableSchema(String db, String tableName, Connection connection, boolean convertDate)
+      throws SQLException {
     try (Statement statement = connection.createStatement()) {
       try (ResultSet results = statement.executeQuery("SELECT * FROM " + db + "." + tableName + " WHERE 1 = 0")) {
-        return Schema.recordOf(tableName, DBTypes.getSchemaFields(results));
+        return Schema.recordOf(tableName, DBTypes.getSchemaFields(results, convertDate));
       }
     }
   }

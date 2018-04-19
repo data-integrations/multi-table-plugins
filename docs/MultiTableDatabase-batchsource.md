@@ -46,7 +46,7 @@ By default reads all tables matching the tableNamePattern.
 **blackList**: Used in conjunction with tableNamePattern, this configuration specifies the tables to be skipped.
 By default the black list is empty which means no tables will be skipped.
 
-
+**dateFormat**: Simple dateformat to format date fields. By default Date fields in DB are converted to long.
 
 
 Example

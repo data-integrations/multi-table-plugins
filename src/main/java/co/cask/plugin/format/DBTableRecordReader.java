@@ -75,7 +75,8 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
         statement = connection.createStatement();
         results = statement.executeQuery("SELECT * FROM " + db + "." + tableName);
         resultMeta = results.getMetaData();
-        tableFields = DBTypes.getSchemaFields(results);
+        boolean convertDateField = dbConf.getDateFormat() == null ? false : true;
+        tableFields = DBTypes.getSchemaFields(results, convertDateField);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
         schemaFields.add(Schema.Field.of(tableNameField, Schema.of(Schema.Type.STRING)));
         schema = Schema.recordOf(tableName, schemaFields);
@@ -104,7 +105,8 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
       for (int i = 0; i < tableFields.size(); i++) {
         Schema.Field field = tableFields.get(i);
         int sqlColumnType = resultMeta.getColumnType(i + 1);
-        recordBuilder.set(field.getName(), DBTypes.transformValue(sqlColumnType, results, field.getName()));
+        recordBuilder.set(field.getName(), DBTypes.transformValue(sqlColumnType, results, field.getName(),
+						dbConf.getDateFormat()));
       }
     } catch (SQLException e) {
       throw new IOException("Error decoding row from table " + tableName, e);

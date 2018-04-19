@@ -27,6 +27,9 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -41,17 +44,18 @@ public class DBTypes {
    * where name of the field is same as column name and type of the field is obtained using {@link DBTypes#getType(int)}
    *
    * @param resultSet result set of executed query
+   * @param convertDate if set to true return String type for date fields
    * @return list of schema fields
    * @throws SQLException
    */
-  public static List<Schema.Field> getSchemaFields(ResultSet resultSet) throws SQLException {
+  public static List<Schema.Field> getSchemaFields(ResultSet resultSet, boolean convertDate) throws SQLException {
     List<Schema.Field> schemaFields = Lists.newArrayList();
     ResultSetMetaData metadata = resultSet.getMetaData();
     // ResultSetMetadata columns are numbered starting with 1
     for (int i = 1; i <= metadata.getColumnCount(); i++) {
       String columnName = metadata.getColumnName(i);
       int columnSqlType = metadata.getColumnType(i);
-      Schema columnSchema = Schema.of(getType(columnSqlType));
+      Schema columnSchema = Schema.of(getType(columnSqlType, convertDate));
       if (ResultSetMetaData.columnNullable == metadata.isNullable(i)) {
         columnSchema = Schema.nullableOf(columnSchema);
       }
@@ -62,7 +66,7 @@ public class DBTypes {
   }
 
   // given a sql type return schema type
-  private static Schema.Type getType(int sqlType) throws SQLException {
+  private static Schema.Type getType(int sqlType, boolean convertDate) throws SQLException {
     // Type.STRING covers sql types - VARCHAR,CHAR,CLOB,LONGNVARCHAR,LONGVARCHAR,NCHAR,NCLOB,NVARCHAR
     Schema.Type type = Schema.Type.STRING;
     switch (sqlType) {
@@ -99,7 +103,11 @@ public class DBTypes {
       case Types.DATE:
       case Types.TIME:
       case Types.TIMESTAMP:
-        type = Schema.Type.LONG;
+        if (convertDate) {
+          type = Schema.Type.STRING;
+        } else {
+          type = Schema.Type.LONG;
+        }
         break;
 
       case Types.BINARY:
@@ -124,8 +132,14 @@ public class DBTypes {
     return type;
   }
 
+  private static String formatDate(long time, String format) {
+		DateFormat dateFormat = new SimpleDateFormat(format);
+		return dateFormat.format(new Date(time));
+	}
+
   @Nullable
-  public static Object transformValue(int sqlColumnType, ResultSet resultSet, String fieldName) throws SQLException {
+  public static Object transformValue(int sqlColumnType, ResultSet resultSet, String fieldName, String dateFormat)
+			throws SQLException {
     Object original = resultSet.getObject(fieldName);
     if (original != null) {
       switch (sqlColumnType) {
@@ -136,11 +150,14 @@ public class DBTypes {
         case Types.DECIMAL:
           return ((BigDecimal) original).doubleValue();
         case Types.DATE:
-          return resultSet.getDate(fieldName).getTime();
+					return dateFormat == null ? resultSet.getDate(fieldName).getTime() :
+							formatDate(resultSet.getDate(fieldName).getTime(), dateFormat);
         case Types.TIME:
-          return resultSet.getTime(fieldName).getTime();
+					return dateFormat == null ? resultSet.getTime(fieldName).getTime() :
+							formatDate(resultSet.getTime(fieldName).getTime(), dateFormat);
         case Types.TIMESTAMP:
-          return resultSet.getTimestamp(fieldName).getTime();
+        	return dateFormat == null ? resultSet.getTimestamp(fieldName).getTime() :
+							formatDate(resultSet.getTimestamp(fieldName).getTime(), dateFormat);
         case Types.BLOB:
           Blob blob = (Blob) original;
           try {
