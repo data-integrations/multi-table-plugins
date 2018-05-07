@@ -37,6 +37,7 @@
     <app.parents>system:cdap-data-pipeline[4.3.0,5.0.0)</app.parents>
     <!-- this is here because project.basedir evaluates to null in the script build step -->
     <main.basedir>${project.basedir}</main.basedir>
+    <commons.codec.version>1.6</commons.codec.version>
   </properties>
 
   <repositories>
@@ -144,6 +145,11 @@
           <groupId>org.slf4j</groupId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>${commons.codec.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
