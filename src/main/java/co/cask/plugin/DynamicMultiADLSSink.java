@@ -20,6 +20,7 @@ import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Macro;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
@@ -35,6 +36,7 @@ import co.cask.plugin.format.RecordFilterOutputFormat;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.avro.mapreduce.AvroJob;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
@@ -111,7 +113,8 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWrita
         co.cask.hydrator.common.HiveSchemaConverter.appendType(builder, Schema.parseJson(schema));
         conf.set("orc.mapred.output.schema", builder.toString());
       } else {
-        conf.set(RecordFilterOutputFormat.DELIMITER, config.getFieldDelimiter());
+        conf.set(RecordFilterOutputFormat.DELIMITER,
+						Base64.encodeBase64String(Bytes.toBytesBinary(config.getFieldDelimiter())));
       }
 
       context.addOutput(Output.of(name, new SinkOutputFormatProvider(RecordFilterOutputFormat.class.getName(), conf)));

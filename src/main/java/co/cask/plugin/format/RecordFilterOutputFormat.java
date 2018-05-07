@@ -16,6 +16,7 @@
 
 package co.cask.plugin.format;
 
+import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.plugin.AbstractStructuredRecordTransformer;
@@ -24,6 +25,7 @@ import co.cask.plugin.StructuredToOrcTransformer;
 import co.cask.plugin.StructuredToTextTransformer;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -57,7 +59,7 @@ public class RecordFilterOutputFormat extends OutputFormat<NullWritable, Structu
 
     String filterField = conf.get(FILTER_FIELD);
     String passthroughVal = conf.get(PASS_VALUE);
-    String delimiter = conf.get(DELIMITER);
+    String delimiter = Bytes.toString(Base64.decodeBase64(conf.get(DELIMITER)));
     String format = conf.get(FORMAT);
     String originalSchema = conf.get(ORIGINAL_SCHEMA);
 
