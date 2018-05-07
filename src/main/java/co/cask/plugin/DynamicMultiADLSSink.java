@@ -114,7 +114,7 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWrita
         conf.set("orc.mapred.output.schema", builder.toString());
       } else {
       	// Encode the delimiter to base64 to support control characters. Otherwise serializing it in Cconf would result
-				// in an error
+        // in an error
         conf.set(RecordFilterOutputFormat.DELIMITER,
 						Base64.encodeBase64String(Bytes.toBytesBinary(config.getFieldDelimiter())));
       }
