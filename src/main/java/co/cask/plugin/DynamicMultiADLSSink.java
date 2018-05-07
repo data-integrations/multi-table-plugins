@@ -113,6 +113,8 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWrita
         co.cask.hydrator.common.HiveSchemaConverter.appendType(builder, Schema.parseJson(schema));
         conf.set("orc.mapred.output.schema", builder.toString());
       } else {
+      	// Encode the delimiter to base64 to support control characters. Otherwise serializing it in Cconf would result
+				// in an error
         conf.set(RecordFilterOutputFormat.DELIMITER,
 						Base64.encodeBase64String(Bytes.toBytesBinary(config.getFieldDelimiter())));
       }
