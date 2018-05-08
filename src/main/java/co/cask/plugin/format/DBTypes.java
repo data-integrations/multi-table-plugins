@@ -43,7 +43,7 @@ public class DBTypes {
    * list of {@link co.cask.cdap.api.data.schema.Schema.Field},
    * where name of the field is same as column name and type of the field is obtained using {@link DBTypes#getType(int)}
    *
-   * @param resultSet result set of executed query
+   * @param resultSet   result set of executed query
    * @param convertDate if set to true return String type for date fields
    * @return list of schema fields
    * @throws SQLException
@@ -132,14 +132,14 @@ public class DBTypes {
     return type;
   }
 
-  private static String formatDate(long time, String format) {
-		DateFormat dateFormat = new SimpleDateFormat(format);
-		return dateFormat.format(new Date(time));
-	}
+  private static String formatDate(long time, DateFormat dateFormat) {
+    return dateFormat.format(new Date(time));
+  }
 
   @Nullable
-  public static Object transformValue(int sqlColumnType, ResultSet resultSet, String fieldName, String dateFormat)
-			throws SQLException {
+  public static Object transformValue(int sqlColumnType, ResultSet resultSet, String fieldName,
+                                      @Nullable DateFormat dateFormat)
+      throws SQLException {
     Object original = resultSet.getObject(fieldName);
     if (original != null) {
       switch (sqlColumnType) {
@@ -150,14 +150,14 @@ public class DBTypes {
         case Types.DECIMAL:
           return ((BigDecimal) original).doubleValue();
         case Types.DATE:
-					return dateFormat == null ? resultSet.getDate(fieldName).getTime() :
-							formatDate(resultSet.getDate(fieldName).getTime(), dateFormat);
+          return dateFormat == null ? resultSet.getDate(fieldName).getTime() :
+              formatDate(resultSet.getDate(fieldName).getTime(), dateFormat);
         case Types.TIME:
-					return dateFormat == null ? resultSet.getTime(fieldName).getTime() :
-							formatDate(resultSet.getTime(fieldName).getTime(), dateFormat);
+          return dateFormat == null ? resultSet.getTime(fieldName).getTime() :
+              formatDate(resultSet.getTime(fieldName).getTime(), dateFormat);
         case Types.TIMESTAMP:
-        	return dateFormat == null ? resultSet.getTimestamp(fieldName).getTime() :
-							formatDate(resultSet.getTimestamp(fieldName).getTime(), dateFormat);
+          return dateFormat == null ? resultSet.getTimestamp(fieldName).getTime() :
+              formatDate(resultSet.getTimestamp(fieldName).getTime(), dateFormat);
         case Types.BLOB:
           Blob blob = (Blob) original;
           try {

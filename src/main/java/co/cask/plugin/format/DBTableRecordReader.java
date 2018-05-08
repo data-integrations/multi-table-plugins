@@ -31,6 +31,8 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -51,6 +53,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   private Connection connection;
   private Statement statement;
   private ResultSet results;
+  private final DateFormat dateFormat;
 
   DBTableRecordReader(MultiTableConf dbConf, String db, String tableName, String tableNameField,
                       DriverCleanup driverCleanup) {
@@ -59,6 +62,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
     this.tableName = tableName;
     this.tableNameField = tableNameField;
     this.driverCleanup = driverCleanup;
+    this.dateFormat = dbConf.getDateFormat() == null ? null : new SimpleDateFormat(dbConf.getDateFormat());
   }
 
   @Override
@@ -106,7 +110,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
         Schema.Field field = tableFields.get(i);
         int sqlColumnType = resultMeta.getColumnType(i + 1);
         recordBuilder.set(field.getName(), DBTypes.transformValue(sqlColumnType, results, field.getName(),
-						dbConf.getDateFormat()));
+						dateFormat));
       }
     } catch (SQLException e) {
       throw new IOException("Error decoding row from table " + tableName, e);

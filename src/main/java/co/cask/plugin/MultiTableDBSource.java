@@ -38,6 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Driver;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Map;
 
@@ -71,6 +73,13 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
                       conf.getJdbcPluginName()));
     }
     pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
+    try {
+      if (conf.getDateFormat() != null) {
+        DateFormat df = new SimpleDateFormat(conf.getDateFormat());
+      }
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(String.format("Dateformat specified is not valid. %s" + e.getMessage()));
+    }
   }
 
   @Override

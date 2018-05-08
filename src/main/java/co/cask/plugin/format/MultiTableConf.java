@@ -96,8 +96,9 @@ public class MultiTableConf extends PluginConfig {
 
   @Macro
   @Nullable
-  @Description("SimpleDate format for converting the date fields in DB. " +
-      "By default dates will be converted to long values.")
+  @Description("SimpleDate format for converting the date, time and timestamp fields in DB. " +
+      " If specified, the date, time and timestamp columns will be formatted into strings. " +
+      " If not specified, the columns will be converted to long values.")
   private String dateFormat;
 
   public MultiTableConf() {
