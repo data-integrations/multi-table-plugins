@@ -94,6 +94,13 @@ public class MultiTableConf extends PluginConfig {
   @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be black listed")
   private String blackList;
 
+  @Macro
+  @Nullable
+  @Description("SimpleDate format for converting the date, time and timestamp fields in DB. " +
+      " If specified, the date, time and timestamp columns will be formatted into strings. " +
+      " If not specified, the columns will be converted to long values.")
+  private String dateFormat;
+
   public MultiTableConf() {
     enableAutoCommit = false;
     tableNameField = "tablename";
@@ -140,6 +147,11 @@ public class MultiTableConf extends PluginConfig {
   @Nullable
   public String getTableNameField() {
     return tableNameField;
+  }
+
+  @Nullable
+  public String getDateFormat() {
+    return dateFormat;
   }
 
   public List<String> getWhiteList() {

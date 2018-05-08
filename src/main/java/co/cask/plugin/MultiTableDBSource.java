@@ -32,12 +32,15 @@ import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.hydrator.common.SourceInputFormatProvider;
 import co.cask.plugin.format.MultiTableConf;
 import co.cask.plugin.format.MultiTableDBInputFormat;
+import com.google.common.base.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Driver;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Map;
 
@@ -71,6 +74,14 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
                       conf.getJdbcPluginName()));
     }
     pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
+    try {
+      if (!conf.containsMacro("dateFormat") && !Strings.isNullOrEmpty(conf.getDateFormat())) {
+        // Create the SimpleDateformat Object to validate the format.
+        DateFormat df = new SimpleDateFormat(conf.getDateFormat());
+      }
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(String.format("Dateformat specified is not valid. %s", e.getMessage()));
+    }
   }
 
   @Override
