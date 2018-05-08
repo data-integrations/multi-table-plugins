@@ -1,7 +1,8 @@
 {
   "metadata": {
-    "spec-version": "1.4"
+    "spec-version": "1.5"
   },
+  "display-name": "Dynamic Multiple Fileset",
   "configuration-groups": [
     {
       "label": "Dynamic Multi FileSet Sink Configuration",

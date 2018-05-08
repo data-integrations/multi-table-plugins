@@ -1,5 +1,5 @@
 /*
- * Copyright © 2016 Cask Data, Inc.
+ * Copyright © 2016-2017 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -47,6 +47,9 @@ import co.cask.plugin.format.MultiTableDBInputFormat;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.orc.mapreduce.OrcOutputFormat;
 import org.apache.twill.filesystem.Location;
 import org.hsqldb.Server;
 import org.hsqldb.jdbc.JDBCDriver;
@@ -96,7 +99,8 @@ public class PipelineTest extends HydratorTestBase {
     // this will make our plugins available to data-pipeline.
     addPluginArtifact(NamespaceId.DEFAULT.artifact("example-plugins", "1.0.0"),
                       parentArtifact,
-                      MultiTableDBSource.class, MultiTableDBInputFormat.class);
+                      MultiTableDBSource.class, MultiTableDBInputFormat.class, AvroKeyOutputFormat.class,
+                      OrcOutputFormat.class, Base64.class);
 
     // add hypersql 3rd party plugin
     PluginClass hypersql = new PluginClass("jdbc", "hypersql", "hypersql jdbc driver", JDBCDriver.class.getName(),

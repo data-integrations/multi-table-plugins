@@ -1,8 +1,25 @@
+/*
+ * Copyright © 2017 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package co.cask.plugin;
 
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
@@ -18,6 +35,7 @@ import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.plugin.format.RecordFilterOutputFormat;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.NullWritable;
 
 import java.util.HashMap;
@@ -39,6 +57,7 @@ import javax.annotation.Nullable;
   "this plugin will be used with the MultiTableDatabase source, which will set those pipeline arguments.")
 public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   public static final String TABLE_PREFIX = "multisink.";
+
   private final Conf conf;
 
   public DynamicMultiFilesetSink(Conf conf) {
@@ -54,7 +73,9 @@ public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWri
       if (!key.startsWith(TABLE_PREFIX)) {
         continue;
       }
-      String name = key.substring(TABLE_PREFIX.length());
+      String dbTableName = key.substring(TABLE_PREFIX.length());
+      //dbTableName is of the form db:table
+      String name = dbTableName.split(":")[1];
       Schema schema = Schema.parseJson(val);
 
       if (!context.datasetExists(name)) {
@@ -64,7 +85,9 @@ public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWri
           .setOutputFormat(RecordFilterOutputFormat.class)
           .setOutputProperty(RecordFilterOutputFormat.FILTER_FIELD, conf.splitField)
           .setOutputProperty(RecordFilterOutputFormat.PASS_VALUE, name)
-          .setOutputProperty(RecordFilterOutputFormat.DELIMITER, conf.delimiter)
+          .setOutputProperty(RecordFilterOutputFormat.DELIMITER,
+							Base64.encodeBase64String(Bytes.toBytesBinary(conf.delimiter)))
+          .setOutputProperty(RecordFilterOutputFormat.ORIGINAL_SCHEMA, val)
           .setEnableExploreOnCreate(true)
           .setExploreFormat("text")
           .setExploreSchema(HiveSchemaConverter.toHiveSchema(schema))

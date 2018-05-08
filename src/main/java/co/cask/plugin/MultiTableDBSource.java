@@ -1,3 +1,19 @@
+/*
+ * Copyright © 2017 Cask Data, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package co.cask.plugin;
 
 import co.cask.cdap.api.annotation.Description;
@@ -22,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Driver;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -60,11 +77,13 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
   public void prepareRun(BatchSourceContext context) throws Exception {
     Configuration hConf = new Configuration();
     Class<? extends Driver> driverClass = context.loadPluginClass(JDBC_PLUGIN_ID);
-    Map<String, Schema> tables = MultiTableDBInputFormat.setInput(hConf, conf, driverClass);
+    Collection<MultiTableDBInputFormat.TableInfo> tables = MultiTableDBInputFormat.setInput(hConf, conf, driverClass);
     SettableArguments arguments = context.getArguments();
-    for (Map.Entry<String, Schema> tableInfo : tables.entrySet()) {
-      arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.getKey(), tableInfo.getValue().toString());
+    for (MultiTableDBInputFormat.TableInfo tableInfo : tables) {
+      arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.db + ":" + tableInfo.tableName,
+                    tableInfo.schema.toString());
     }
+
     context.setInput(Input.of(conf.getReferenceName(),
                               new SourceInputFormatProvider(MultiTableDBInputFormat.class, hConf)));
   }
