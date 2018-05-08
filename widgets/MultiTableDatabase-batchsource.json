@@ -59,6 +59,11 @@
         },
         {
           "widget-type": "textbox",
+          "label": "Simple Date Format to convert date fields",
+          "name": "dateFormat"
+        },
+        {
+          "widget-type": "textbox",
           "label": "Enable Auto Commit",
           "name": "enableAutoCommit"
         }
