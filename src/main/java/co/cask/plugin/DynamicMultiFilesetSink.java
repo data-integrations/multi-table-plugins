@@ -19,6 +19,7 @@ package co.cask.plugin;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
@@ -34,6 +35,7 @@ import co.cask.cdap.etl.api.Emitter;
 import co.cask.cdap.etl.api.batch.BatchSink;
 import co.cask.cdap.etl.api.batch.BatchSinkContext;
 import co.cask.plugin.format.RecordFilterOutputFormat;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.NullWritable;
 
 import java.util.HashMap;
@@ -83,7 +85,8 @@ public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWri
           .setOutputFormat(RecordFilterOutputFormat.class)
           .setOutputProperty(RecordFilterOutputFormat.FILTER_FIELD, conf.splitField)
           .setOutputProperty(RecordFilterOutputFormat.PASS_VALUE, name)
-          .setOutputProperty(RecordFilterOutputFormat.DELIMITER, conf.delimiter)
+          .setOutputProperty(RecordFilterOutputFormat.DELIMITER,
+							Base64.encodeBase64String(Bytes.toBytesBinary(conf.delimiter)))
           .setOutputProperty(RecordFilterOutputFormat.ORIGINAL_SCHEMA, val)
           .setEnableExploreOnCreate(true)
           .setExploreFormat("text")
