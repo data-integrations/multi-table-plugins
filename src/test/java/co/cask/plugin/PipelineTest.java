@@ -48,6 +48,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.orc.mapreduce.OrcOutputFormat;
 import org.apache.twill.filesystem.Location;
 import org.hsqldb.Server;
@@ -99,7 +100,7 @@ public class PipelineTest extends HydratorTestBase {
     addPluginArtifact(NamespaceId.DEFAULT.artifact("example-plugins", "1.0.0"),
                       parentArtifact,
                       MultiTableDBSource.class, MultiTableDBInputFormat.class, AvroKeyOutputFormat.class,
-                      OrcOutputFormat.class);
+                      OrcOutputFormat.class, Base64.class);
 
     // add hypersql 3rd party plugin
     PluginClass hypersql = new PluginClass("jdbc", "hypersql", "hypersql jdbc driver", JDBCDriver.class.getName(),
