@@ -80,7 +80,7 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
         DateFormat df = new SimpleDateFormat(conf.getDateFormat());
       }
     } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(String.format("Dateformat specified is not valid. %s" + e.getMessage()));
+      throw new IllegalArgumentException(String.format("Dateformat specified is not valid. %s", e.getMessage()));
     }
   }
 
