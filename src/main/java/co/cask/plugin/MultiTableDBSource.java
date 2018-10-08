@@ -21,7 +21,6 @@ import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
 import co.cask.cdap.api.data.batch.Input;
 import co.cask.cdap.api.data.format.StructuredRecord;
-import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.dataset.lib.KeyValue;
 import co.cask.cdap.api.plugin.PluginProperties;
 import co.cask.cdap.etl.api.Emitter;
@@ -32,17 +31,11 @@ import co.cask.cdap.etl.api.batch.BatchSourceContext;
 import co.cask.hydrator.common.SourceInputFormatProvider;
 import co.cask.plugin.format.MultiTableConf;
 import co.cask.plugin.format.MultiTableDBInputFormat;
-import com.google.common.base.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.sql.Driver;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Collection;
-import java.util.Map;
 
 /**
  * Batch source to read from multiple tables in a database using JDBC.
@@ -53,7 +46,6 @@ import java.util.Map;
   "Outputs one record for each row in each table, with the table name as a record field. " +
   "Also sets a pipeline argument for each table read, which contains the table schema. ")
 public class MultiTableDBSource extends BatchSource<NullWritable, StructuredRecord, StructuredRecord> {
-  private static final Logger LOG = LoggerFactory.getLogger(MultiTableDBSource.class);
   private static final String JDBC_PLUGIN_ID = "jdbc.driver";
 
   private final MultiTableConf conf;
@@ -74,14 +66,6 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
                       conf.getJdbcPluginName()));
     }
     pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
-    try {
-      if (!conf.containsMacro("dateFormat") && !Strings.isNullOrEmpty(conf.getDateFormat())) {
-        // Create the SimpleDateformat Object to validate the format.
-        DateFormat df = new SimpleDateFormat(conf.getDateFormat());
-      }
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(String.format("Dateformat specified is not valid. %s", e.getMessage()));
-    }
   }
 
   @Override
@@ -91,8 +75,7 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
     Collection<MultiTableDBInputFormat.TableInfo> tables = MultiTableDBInputFormat.setInput(hConf, conf, driverClass);
     SettableArguments arguments = context.getArguments();
     for (MultiTableDBInputFormat.TableInfo tableInfo : tables) {
-      arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.db + ":" + tableInfo.tableName,
-                    tableInfo.schema.toString());
+      arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.tableName, tableInfo.schema.toString());
     }
 
     context.setInput(Input.of(conf.getReferenceName(),
@@ -100,8 +83,7 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
   }
 
   @Override
-  public void transform(KeyValue<NullWritable, StructuredRecord> input,
-                        Emitter<StructuredRecord> emitter) throws Exception {
+  public void transform(KeyValue<NullWritable, StructuredRecord> input, Emitter<StructuredRecord> emitter) {
     emitter.emit(input.getValue());
   }
 }

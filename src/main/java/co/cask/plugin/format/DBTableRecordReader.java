@@ -31,8 +31,6 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,7 +39,6 @@ import java.util.List;
  */
 public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRecord> {
   private final String tableName;
-  private final String db;
   private final String tableNameField;
   private final MultiTableConf dbConf;
   private final DriverCleanup driverCleanup;
@@ -53,34 +50,29 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   private Connection connection;
   private Statement statement;
   private ResultSet results;
-  private final DateFormat dateFormat;
 
-  DBTableRecordReader(MultiTableConf dbConf, String db, String tableName, String tableNameField,
-                      DriverCleanup driverCleanup) {
+  DBTableRecordReader(MultiTableConf dbConf, String tableName, String tableNameField, DriverCleanup driverCleanup) {
     this.dbConf = dbConf;
-    this.db = db;
     this.tableName = tableName;
     this.tableNameField = tableNameField;
     this.driverCleanup = driverCleanup;
-    this.dateFormat = dbConf.getDateFormat() == null ? null : new SimpleDateFormat(dbConf.getDateFormat());
   }
 
   @Override
-  public void initialize(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
+  public void initialize(InputSplit split, TaskAttemptContext context) {
     this.split = (DBTableSplit) split;
     this.pos = 0;
   }
 
   @Override
-  public boolean nextKeyValue() throws IOException, InterruptedException {
+  public boolean nextKeyValue() throws IOException {
     try {
       if (results == null) {
         connection = dbConf.getConnection();
         statement = connection.createStatement();
-        results = statement.executeQuery("SELECT * FROM " + db + "." + tableName);
+        results = statement.executeQuery("SELECT * FROM " + tableName);
         resultMeta = results.getMetaData();
-        boolean convertDateField = dbConf.getDateFormat() == null ? false : true;
-        tableFields = DBTypes.getSchemaFields(results, convertDateField);
+        tableFields = DBTypes.getSchemaFields(results);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
         schemaFields.add(Schema.Field.of(tableNameField, Schema.of(Schema.Type.STRING)));
         schema = Schema.recordOf(tableName, schemaFields);
@@ -97,20 +89,19 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   }
 
   @Override
-  public NullWritable getCurrentKey() throws IOException, InterruptedException {
+  public NullWritable getCurrentKey() {
     return NullWritable.get();
   }
 
   @Override
-  public StructuredRecord getCurrentValue() throws IOException, InterruptedException {
+  public StructuredRecord getCurrentValue() throws IOException {
     StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema)
       .set(tableNameField, tableName);
     try {
       for (int i = 0; i < tableFields.size(); i++) {
         Schema.Field field = tableFields.get(i);
         int sqlColumnType = resultMeta.getColumnType(i + 1);
-        recordBuilder.set(field.getName(), DBTypes.transformValue(sqlColumnType, results, field.getName(),
-						dateFormat));
+        DBTypes.setValue(recordBuilder, sqlColumnType, results, field.getName());
       }
     } catch (SQLException e) {
       throw new IOException("Error decoding row from table " + tableName, e);
@@ -119,7 +110,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   }
 
   @Override
-  public float getProgress() throws IOException, InterruptedException {
+  public float getProgress() {
     return pos / (float) split.getLength();
   }
 

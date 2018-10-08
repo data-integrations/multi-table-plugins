@@ -28,7 +28,7 @@
           "name": "user"
         },
         {
-          "widget-type": "textbox",
+          "widget-type": "password",
           "label": "Database User Password",
           "name": "password"
         },
@@ -56,11 +56,6 @@
           "widget-type": "textbox",
           "label": "Table Name Field",
           "name": "tableNameField"
-        },
-        {
-          "widget-type": "textbox",
-          "label": "Simple Date Format to convert date fields",
-          "name": "dateFormat"
         },
         {
           "widget-type": "textbox",

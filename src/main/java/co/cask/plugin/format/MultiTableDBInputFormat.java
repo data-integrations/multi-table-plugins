@@ -40,7 +40,9 @@ import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Input format that reads from multiple tables in a database using JDBC. Similar to Hadoop's DBInputFormat.
@@ -74,21 +76,22 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
       DatabaseMetaData dbMeta = connection.getMetaData();
       ResultSet tables = dbMeta.getTables(null, dbConf.getSchemaNamePattern(), dbConf.getTableNamePattern(),
           new String[] {"TABLE", "TABLE_SCHEM"});
-      Collection<TableInfo> tableInfos = new ArrayList<TableInfo>();
+      Collection<TableInfo> tableInfos = new ArrayList<>();
       List<DBTableSplit> splits = new ArrayList<>();
       List<String> whiteList = dbConf.getWhiteList();
       List<String> blackList = dbConf.getBlackList();
       while (tables.next()) {
         String tableName = tables.getString("TABLE_NAME");
+        // this is required for oracle apparently? Don't know why
         String db = tables.getString("TABLE_SCHEM");
+        String table = db == null ? tableName : db + "." + tableName;
         // If the table name exists in blacklist or when the whiteList is not empty and does not contain table name
         // the table should not be read
         if (!blackList.contains(tableName) && (whiteList.isEmpty() || whiteList.contains(tableName))) {
-          long numRows = getTableRowCount(db, tableName, connection);
-          boolean convertDate = dbConf.getDateFormat() == null ? false : true;
-          Schema schema = getTableSchema(db, tableName, connection, convertDate);
-          tableInfos.add(new TableInfo(db, tableName, schema));
-          splits.add(new DBTableSplit(db, tableName, numRows));
+          long numRows = getTableRowCount(table, connection);
+          Schema schema = getTableSchema(table, connection);
+          tableInfos.add(new TableInfo(table, schema));
+          splits.add(new DBTableSplit(table, numRows));
         }
       }
       hConf.set(SPLITS_FIELD, GSON.toJson(splits));
@@ -99,7 +102,7 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
   }
 
   @Override
-  public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
+  public List<InputSplit> getSplits(JobContext context) {
     Configuration conf = context.getConfiguration();
     List<InputSplit> splits = GSON.fromJson(conf.get(SPLITS_FIELD), SPLITS_TYPE);
     return splits;
@@ -107,7 +110,7 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
 
   @Override
   public RecordReader<NullWritable, StructuredRecord> createRecordReader(InputSplit split, TaskAttemptContext context)
-    throws IOException, InterruptedException {
+    throws IOException {
     Configuration conf = context.getConfiguration();
     DBTableSplit dbTableSplit = (DBTableSplit) split;
     MultiTableConf dbConf = GSON.fromJson(conf.get(CONF_FIELD), MultiTableConf.class);
@@ -115,8 +118,7 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
     try {
       Class<? extends Driver> driverClass = (Class<? extends Driver>) conf.getClassLoader().loadClass(driverClassname);
       DriverCleanup driverCleanup = Drivers.ensureJDBCDriverIsAvailable(driverClass, dbConf.getConnectionString());
-      return new DBTableRecordReader(dbConf, dbTableSplit.getDb(), dbTableSplit.getTableName(),
-          dbConf.getTableNameField(), driverCleanup);
+      return new DBTableRecordReader(dbConf, dbTableSplit.getTableName(), dbConf.getTableNameField(), driverCleanup);
     } catch (ClassNotFoundException e) {
       LOG.error("Could not load jdbc driver class {}", driverClassname);
       throw new IOException(e);
@@ -126,20 +128,19 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
     }
   }
 
-  private static long getTableRowCount(String db, String tableName, Connection connection) throws SQLException {
+  private static long getTableRowCount(String table, Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery("SELECT COUNT(*) FROM " + db + "." + tableName)) {
+      try (ResultSet results = statement.executeQuery("SELECT COUNT(*) FROM " + table)) {
         results.next();
         return results.getLong(1);
       }
     }
   }
 
-  private static Schema getTableSchema(String db, String tableName, Connection connection, boolean convertDate)
-      throws SQLException {
+  private static Schema getTableSchema(String table, Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery("SELECT * FROM " + db + "." + tableName + " WHERE 1 = 0")) {
-        return Schema.recordOf(tableName, DBTypes.getSchemaFields(results, convertDate));
+      try (ResultSet results = statement.executeQuery("SELECT * FROM " + table + " WHERE 1 = 0")) {
+        return Schema.recordOf(table, DBTypes.getSchemaFields(results));
       }
     }
   }
@@ -147,11 +148,9 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
   public static class TableInfo {
 
     public String tableName;
-    public String db;
     public Schema schema;
 
-    public TableInfo(String db, String tableName, Schema schema) {
-      this.db = db;
+    TableInfo(String tableName, Schema schema) {
       this.tableName = tableName;
       this.schema = schema;
     }
