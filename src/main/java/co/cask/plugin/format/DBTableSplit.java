@@ -29,14 +29,12 @@ import java.io.IOException;
 public class DBTableSplit extends InputSplit implements Writable {
   private String tableName;
   private long length;
-  private String db;
 
   // used by mapreduce
   public DBTableSplit() {
   }
 
-  public DBTableSplit(String db, String tableName, long length) {
-    this.db = db;
+  public DBTableSplit(String tableName, long length) {
     this.tableName = tableName;
     this.length = length;
   }
@@ -45,23 +43,21 @@ public class DBTableSplit extends InputSplit implements Writable {
   public void write(DataOutput out) throws IOException {
     out.writeLong(length);
     out.writeUTF(tableName);
-    out.writeUTF(db);
   }
 
   @Override
   public void readFields(DataInput in) throws IOException {
     length = in.readLong();
     tableName = in.readUTF();
-    db = in.readUTF();
   }
 
   @Override
-  public long getLength() throws IOException, InterruptedException {
+  public long getLength() {
     return length;
   }
 
   @Override
-  public String[] getLocations() throws IOException, InterruptedException {
+  public String[] getLocations() {
     return new String[0];
   }
 
@@ -69,7 +65,4 @@ public class DBTableSplit extends InputSplit implements Writable {
     return tableName;
   }
 
-  public String getDb() {
-    return db;
-  }
 }

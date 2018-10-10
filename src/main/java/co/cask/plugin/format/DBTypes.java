@@ -16,6 +16,7 @@
 
 package co.cask.plugin.format;
 
+import co.cask.cdap.api.data.format.StructuredRecord;
 import co.cask.cdap.api.data.schema.Schema;
 import co.cask.cdap.api.data.schema.UnsupportedTypeException;
 import com.google.common.collect.Lists;
@@ -26,9 +27,13 @@ import java.sql.Clob;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.DateFormat;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -44,18 +49,17 @@ public class DBTypes {
    * where name of the field is same as column name and type of the field is obtained using {@link DBTypes#getType(int)}
    *
    * @param resultSet   result set of executed query
-   * @param convertDate if set to true return String type for date fields
    * @return list of schema fields
    * @throws SQLException
    */
-  public static List<Schema.Field> getSchemaFields(ResultSet resultSet, boolean convertDate) throws SQLException {
+  public static List<Schema.Field> getSchemaFields(ResultSet resultSet) throws SQLException {
     List<Schema.Field> schemaFields = Lists.newArrayList();
     ResultSetMetaData metadata = resultSet.getMetaData();
     // ResultSetMetadata columns are numbered starting with 1
     for (int i = 1; i <= metadata.getColumnCount(); i++) {
       String columnName = metadata.getColumnName(i);
       int columnSqlType = metadata.getColumnType(i);
-      Schema columnSchema = Schema.of(getType(columnSqlType, convertDate));
+      Schema columnSchema = getSchema(columnSqlType);
       if (ResultSetMetaData.columnNullable == metadata.isNullable(i)) {
         columnSchema = Schema.nullableOf(columnSchema);
       }
@@ -66,56 +70,46 @@ public class DBTypes {
   }
 
   // given a sql type return schema type
-  private static Schema.Type getType(int sqlType, boolean convertDate) throws SQLException {
+  private static Schema getSchema(int sqlType) throws SQLException {
     // Type.STRING covers sql types - VARCHAR,CHAR,CLOB,LONGNVARCHAR,LONGVARCHAR,NCHAR,NCLOB,NVARCHAR
-    Schema.Type type = Schema.Type.STRING;
+    Schema schema = Schema.of(Schema.Type.STRING);
     switch (sqlType) {
       case Types.NULL:
-        type = Schema.Type.NULL;
-        break;
+        return Schema.of(Schema.Type.NULL);
 
       case Types.BOOLEAN:
       case Types.BIT:
-        type = Schema.Type.BOOLEAN;
-        break;
+        return Schema.of(Schema.Type.BOOLEAN);
 
       case Types.TINYINT:
       case Types.SMALLINT:
       case Types.INTEGER:
-        type = Schema.Type.INT;
-        break;
+        return Schema.of(Schema.Type.INT);
 
       case Types.BIGINT:
-        type = Schema.Type.LONG;
-        break;
+        return Schema.of(Schema.Type.LONG);
 
       case Types.REAL:
       case Types.FLOAT:
-        type = Schema.Type.FLOAT;
-        break;
+        return Schema.of(Schema.Type.FLOAT);
 
       case Types.NUMERIC:
       case Types.DECIMAL:
       case Types.DOUBLE:
-        type = Schema.Type.DOUBLE;
-        break;
+        return Schema.of(Schema.Type.DOUBLE);
 
       case Types.DATE:
+        return Schema.of(Schema.LogicalType.DATE);
       case Types.TIME:
+        return Schema.of(Schema.LogicalType.TIME_MICROS);
       case Types.TIMESTAMP:
-        if (convertDate) {
-          type = Schema.Type.STRING;
-        } else {
-          type = Schema.Type.LONG;
-        }
-        break;
+        return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
 
       case Types.BINARY:
       case Types.VARBINARY:
       case Types.LONGVARBINARY:
       case Types.BLOB:
-        type = Schema.Type.BYTES;
-        break;
+        return Schema.of(Schema.Type.BYTES);
 
       case Types.ARRAY:
       case Types.DATALINK:
@@ -129,52 +123,43 @@ public class DBTypes {
         throw new SQLException(new UnsupportedTypeException("Unsupported SQL Type: " + sqlType));
     }
 
-    return type;
+    return schema;
   }
 
-  private static String formatDate(long time, DateFormat dateFormat) {
-    return dateFormat.format(new Date(time));
-  }
-
-  @Nullable
-  public static Object transformValue(int sqlColumnType, ResultSet resultSet, String fieldName,
-                                      @Nullable DateFormat dateFormat)
-      throws SQLException {
+  public static StructuredRecord.Builder setValue(StructuredRecord.Builder record, int sqlColumnType,
+                                                  ResultSet resultSet, String fieldName) throws SQLException {
     Object original = resultSet.getObject(fieldName);
     if (original != null) {
       switch (sqlColumnType) {
         case Types.SMALLINT:
         case Types.TINYINT:
-          return ((Number) original).intValue();
+          return record.set(fieldName, ((Number) original).intValue());
         case Types.NUMERIC:
         case Types.DECIMAL:
-          return ((BigDecimal) original).doubleValue();
+          return record.set(fieldName, ((BigDecimal) original).doubleValue());
         case Types.DATE:
-          return dateFormat == null ? resultSet.getDate(fieldName).getTime() :
-              formatDate(resultSet.getDate(fieldName).getTime(), dateFormat);
+          return record.setDate(fieldName, resultSet.getDate(fieldName).toLocalDate());
         case Types.TIME:
-          return dateFormat == null ? resultSet.getTime(fieldName).getTime() :
-              formatDate(resultSet.getTime(fieldName).getTime(), dateFormat);
+          return record.setTime(fieldName, resultSet.getTime(fieldName).toLocalTime());
         case Types.TIMESTAMP:
-          return dateFormat == null ? resultSet.getTimestamp(fieldName).getTime() :
-              formatDate(resultSet.getTimestamp(fieldName).getTime(), dateFormat);
+          Instant instant = resultSet.getTimestamp(fieldName).toInstant();
+          return record.setTimestamp(fieldName, instant.atZone(ZoneId.ofOffset("UTC", ZoneOffset.UTC)));
         case Types.BLOB:
           Blob blob = (Blob) original;
           try {
-            return blob.getBytes(1, (int) blob.length());
+            return record.set(fieldName, blob.getBytes(1, (int) blob.length()));
           } finally {
             blob.free();
           }
         case Types.CLOB:
           Clob clob = (Clob) original;
           try {
-            return clob.getSubString(1, (int) clob.length());
+            return record.set(fieldName, clob.getSubString(1, (int) clob.length()));
           } finally {
             clob.free();
           }
       }
     }
-    return original;
+    return record.set(fieldName, original);
   }
-
 }

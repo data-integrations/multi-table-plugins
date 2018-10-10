@@ -47,19 +47,6 @@ import co.cask.plugin.format.MultiTableDBInputFormat;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import org.apache.avro.mapreduce.AvroKeyOutputFormat;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.orc.mapreduce.OrcOutputFormat;
-import org.apache.twill.filesystem.Location;
-import org.hsqldb.Server;
-import org.hsqldb.jdbc.JDBCDriver;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -72,6 +59,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import org.apache.avro.mapreduce.AvroKeyOutputFormat;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.orc.mapreduce.OrcOutputFormat;
+import org.apache.twill.filesystem.Location;
+import org.hsqldb.Server;
+import org.hsqldb.jdbc.JDBCDriver;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 /**
  * Unit tests for our plugins.
@@ -163,7 +162,7 @@ public class PipelineTest extends HydratorTestBase {
 
     AppRequest<ETLBatchConfig> appRequest = new AppRequest<>(APP_ARTIFACT, config);
     ApplicationId appId = NamespaceId.DEFAULT.app("multitable");
-    ApplicationManager appManager = deployApplication(appId.toId(), appRequest);
+    ApplicationManager appManager = deployApplication(appId, appRequest);
 
     long logicalStart = System.currentTimeMillis();
     WorkflowManager workflowManager = appManager.getWorkflowManager(SmartWorkflow.NAME);

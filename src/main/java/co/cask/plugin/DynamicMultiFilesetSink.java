@@ -19,6 +19,7 @@ package co.cask.plugin;
 import co.cask.cdap.api.annotation.Description;
 import co.cask.cdap.api.annotation.Name;
 import co.cask.cdap.api.annotation.Plugin;
+import co.cask.cdap.api.annotation.Requirements;
 import co.cask.cdap.api.common.Bytes;
 import co.cask.cdap.api.data.batch.Output;
 import co.cask.cdap.api.data.format.StructuredRecord;
@@ -55,6 +56,7 @@ import javax.annotation.Nullable;
   "to write to will be present in the pipeline arguments. Each table to write to must have an argument where " +
   "the key is 'multisink.[name]' and the value is the schema for that fileset. Most of the time, " +
   "this plugin will be used with the MultiTableDatabase source, which will set those pipeline arguments.")
+@Requirements(datasetTypes = { PartitionedFileSet.TYPE })
 public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   public static final String TABLE_PREFIX = "multisink.";
 
@@ -73,9 +75,7 @@ public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWri
       if (!key.startsWith(TABLE_PREFIX)) {
         continue;
       }
-      String dbTableName = key.substring(TABLE_PREFIX.length());
-      //dbTableName is of the form db:table
-      String name = dbTableName.split(":")[1];
+      String name = key.substring(TABLE_PREFIX.length());
       Schema schema = Schema.parseJson(val);
 
       if (!context.datasetExists(name)) {
@@ -86,7 +86,7 @@ public class DynamicMultiFilesetSink extends BatchSink<StructuredRecord, NullWri
           .setOutputProperty(RecordFilterOutputFormat.FILTER_FIELD, conf.splitField)
           .setOutputProperty(RecordFilterOutputFormat.PASS_VALUE, name)
           .setOutputProperty(RecordFilterOutputFormat.DELIMITER,
-							Base64.encodeBase64String(Bytes.toBytesBinary(conf.delimiter)))
+                             Base64.encodeBase64String(Bytes.toBytesBinary(conf.delimiter)))
           .setOutputProperty(RecordFilterOutputFormat.ORIGINAL_SCHEMA, val)
           .setEnableExploreOnCreate(true)
           .setExploreFormat("text")
