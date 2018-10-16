@@ -84,8 +84,9 @@ public class PipelineTestMysql extends HydratorTestBase {
   public static final TestConfiguration CONFIG = new TestConfiguration("explore.enabled", false);
   @ClassRule
   public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  public static final int PORT = 13306;
   private static final ArtifactSummary APP_ARTIFACT = new ArtifactSummary("data-pipeline", "1.0.0");
-  private static final String MYSQL_CONNECTION_STRING = "jdbc:mysql://localhost:3306/testdb";
+  private static final String MYSQL_CONNECTION_STRING = "jdbc:mysql://localhost:" + PORT + "/testdb";
   private static EmbeddedMysql mysqld;
 
   @BeforeClass
@@ -112,7 +113,7 @@ public class PipelineTestMysql extends HydratorTestBase {
 //    Class.forName("com.mysql.jdbc.Driver");
 
     MysqldConfig config = aMysqldConfig(v5_7_latest)
-            .withFreePort()
+            .withPort(PORT)
             .withUser("test_user", "")
             .build();
 
