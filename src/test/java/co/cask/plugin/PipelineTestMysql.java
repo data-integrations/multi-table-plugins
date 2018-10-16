@@ -47,6 +47,7 @@ import co.cask.plugin.format.MultiTableDBInputFormat;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.mysql.jdbc.Driver;
 import com.wix.mysql.EmbeddedMysql;
 import com.wix.mysql.config.DownloadConfig;
 import com.wix.mysql.config.MysqldConfig;
@@ -79,200 +80,179 @@ import static com.wix.mysql.distribution.Version.v5_7_latest;
  * Unit tests for our plugins.
  */
 public class PipelineTestMysql extends HydratorTestBase {
-    @ClassRule
-    public static final TestConfiguration CONFIG = new TestConfiguration("explore.enabled", false);
-    private static final ArtifactSummary APP_ARTIFACT = new ArtifactSummary("data-pipeline", "1.0.0");
-    private static final String MYSQL_CONNECTION_STRING = "jdbc:mysql://localhost:3306/testdb";
-    @ClassRule
-    public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @ClassRule
+  public static final TestConfiguration CONFIG = new TestConfiguration("explore.enabled", false);
+  @ClassRule
+  public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  private static final ArtifactSummary APP_ARTIFACT = new ArtifactSummary("data-pipeline", "1.0.0");
+  private static final String MYSQL_CONNECTION_STRING = "jdbc:mysql://localhost:3306/testdb";
+  private static EmbeddedMysql mysqld;
 
+  @BeforeClass
+  public static void setupTestClass() throws Exception {
+    ArtifactId parentArtifact = NamespaceId.DEFAULT.artifact(APP_ARTIFACT.getName(), APP_ARTIFACT.getVersion());
 
-    private static EmbeddedMysql mysqld;
+    // add the data-pipeline artifact and mock plugins
+    setupBatchArtifacts(parentArtifact, DataPipelineApp.class);
 
-    @BeforeClass
-    public static void setupTestClass() throws Exception {
-        ArtifactId parentArtifact = NamespaceId.DEFAULT.artifact(APP_ARTIFACT.getName(), APP_ARTIFACT.getVersion());
+    // add our plugins artifact with the data-pipeline artifact as its parent.
+    // this will make our plugins available to data-pipeline.
+    addPluginArtifact(NamespaceId.DEFAULT.artifact("example-plugins", "1.0.0"),
+            parentArtifact,
+            MultiTableDBSource.class, MultiTableDBInputFormat.class, AvroKeyOutputFormat.class,
+            OrcOutputFormat.class, Base64.class);
 
-        // add the data-pipeline artifact and mock plugins
-        setupBatchArtifacts(parentArtifact, DataPipelineApp.class);
+    // add mysql 3rd party plugin
+    PluginClass mysqlPlugin = new PluginClass("jdbc", "mysql", "mysql jdbc driver", Class.forName("com.mysql.jdbc.Driver").getName(),
+            null, Collections.<String, PluginPropertyField>emptyMap());
+    addPluginArtifact(NamespaceId.DEFAULT.artifact("mysql-jdbc", "1.0.0"),
+            parentArtifact,
+            Sets.newHashSet(mysqlPlugin), Driver.class);
 
-        // add our plugins artifact with the data-pipeline artifact as its parent.
-        // this will make our plugins available to data-pipeline.
-        addPluginArtifact(NamespaceId.DEFAULT.artifact("example-plugins", "1.0.0"),
-                parentArtifact,
-                MultiTableDBSource.class, MultiTableDBInputFormat.class, AvroKeyOutputFormat.class,
-                OrcOutputFormat.class, Base64.class);
+//    Class.forName("com.mysql.jdbc.Driver");
 
-        // add mysql 3rd party plugin
-        PluginClass mysqlPlugin = new PluginClass("jdbc", "mysql", "mysql jdbc driver", Class.forName("com.mysql.jdbc.Driver").getName(),
-                null, Collections.<String, PluginPropertyField>emptyMap());
-        addPluginArtifact(NamespaceId.DEFAULT.artifact("mysql-jdbc", "1.0.0"),
-                parentArtifact,
-                Sets.newHashSet(mysqlPlugin), Class.forName("com.mysql.jdbc.Driver"));
+    MysqldConfig config = aMysqldConfig(v5_7_latest)
+            .withFreePort()
+            .withUser("test_user", "")
+            .build();
 
-        Class.forName("com.mysql.jdbc.Driver");
+    DownloadConfig downloadConfig = aDownloadConfig()
+            .withCacheDir(System.getProperty("java.io.tmpdir"))
+            .build();
 
-        MysqldConfig config = aMysqldConfig(v5_7_latest)
-                .withPort(3306)
-                .withUser("test_user", "")
-                .build();
+    mysqld = anEmbeddedMysql(config, downloadConfig)
+            .addSchema("testdb")
+            .start();
+  }
 
-        DownloadConfig downloadConfig = aDownloadConfig()
-                .withCacheDir(System.getProperty("java.io.tmpdir"))
-                .build();
+  @AfterClass
+  public static void cleanup() {
+    if (mysqld != null) {
+      mysqld.stop();
+    }
+  }
 
-        mysqld = anEmbeddedMysql(config, downloadConfig)
-                .addSchema("testdb")
-                .start();
+  @Test
+  public void testMultiTableDump() throws Exception {
+
+    try (Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, "test_user", "")) {
+      try (Statement stmt = conn.createStatement()) {
+        // note that the tables need quotation marks around them; otherwise, hsql creates them in upper case
+        stmt.execute("CREATE TABLE `MULTI1` (`ID` int(11) NOT NULL, `NAME` varchar(32) NOT NULL DEFAULT '')");
+        stmt.execute("INSERT INTO `MULTI1` VALUES (0, 'samuel'), (1, 'dwayne')");
+
+        stmt.execute("CREATE TABLE `MULTI2` (`NAME` varchar(32) NOT NULL DEFAULT '', `EMAIL` varchar(64))");
+        stmt.execute("INSERT INTO `MULTI2` VALUES ('samuel', 'sj@example.com'), ('dwayne', 'rock@j.com')");
+
+        stmt.execute("CREATE TABLE `MULTI3` (`ITEM` varchar(32) NOT NULL DEFAULT '', `CODE` int(11))");
+        stmt.execute("INSERT INTO `MULTI3` VALUES ('donut', 100), ('scotch', 707)");
+
+        stmt.execute("CREATE TABLE `BLACKLIST1` (`ITEM` varchar(32) NOT NULL DEFAULT '', `CODE` int(11))");
+        stmt.execute("INSERT INTO `BLACKLIST1` VALUES ('orange', 100), ('newblack', 707)");
+
+        stmt.execute("CREATE TABLE `BLACKLIST2` (`ITEM` varchar(32) NOT NULL DEFAULT '', `CODE` int(11))");
+        stmt.execute("INSERT INTO `BLACKLIST2` VALUES ('black', 100), ('mirror', 707)");
+
+      }
     }
 
-    @AfterClass
-    public static void cleanup() {
-        if (mysqld != null) {
-            mysqld.stop();
+    ETLBatchConfig config = ETLBatchConfig.builder("* * * * *")
+            .addStage(new ETLStage("source", new ETLPlugin("MultiTableDatabase", BatchSource.PLUGIN_TYPE,
+                    ImmutableMap.<String, String>builder()
+                            .put("connectionString", MYSQL_CONNECTION_STRING)
+                            .put("user", "test_user")
+                            .put("jdbcPluginName", "mysql")
+                            .put("referenceName", "seequol")
+                            .put("schemaNamePattern", "testdb")
+                            .put("blackList", "BLACKLIST1,BLACKLIST2")
+                            .put("whiteList", "MULTI1,MULTI2,MULTI3")
+                            .build())))
+            .addStage(new ETLStage("sink1", MockSink.getPlugin("multiOutput")))
+            .addStage(new ETLStage("sink2", new ETLPlugin("DynamicMultiFileset", BatchSink.PLUGIN_TYPE,
+                    ImmutableMap.of("delimiter", ","))))
+            .addConnection("source", "sink1")
+            .addConnection("source", "sink2")
+            .build();
+
+    AppRequest<ETLBatchConfig> appRequest = new AppRequest<>(APP_ARTIFACT, config);
+    ApplicationId appId = NamespaceId.DEFAULT.app("multitable");
+    ApplicationManager appManager = deployApplication(appId, appRequest);
+
+    long logicalStart = System.currentTimeMillis();
+    WorkflowManager workflowManager = appManager.getWorkflowManager(SmartWorkflow.NAME);
+    workflowManager.start(ImmutableMap.of("logical.start.time", String.valueOf(logicalStart)));
+    workflowManager.waitForRun(ProgramRunStatus.COMPLETED, 5, TimeUnit.MINUTES);
+
+    // check multi fileset sink
+    DataSetManager<PartitionedFileSet> multi1Manager = getDataset("MULTI1");
+    DataSetManager<PartitionedFileSet> multi2Manager = getDataset("MULTI2");
+    DataSetManager<PartitionedFileSet> multi3Manager = getDataset("MULTI3");
+    DataSetManager<PartitionedFileSet> blacklist1 = getDataset("BLACKLIST1");
+    DataSetManager<PartitionedFileSet> blacklist2 = getDataset("BLACKLIST2");
+
+    Assert.assertNull(blacklist1.get());
+    Assert.assertNull(blacklist2.get());
+
+
+    long timePartition = TimeUnit.SECONDS.convert(logicalStart, TimeUnit.MILLISECONDS);
+    PartitionKey partitionKey = PartitionKey.builder().addLongField("ingesttime", timePartition).build();
+
+    Assert.assertEquals(ImmutableSet.of("0,samuel", "1,dwayne"), getLines(multi1Manager.get(), partitionKey));
+    Assert.assertEquals(ImmutableSet.of("samuel,sj@example.com", "dwayne,rock@j.com"),
+            getLines(multi2Manager.get(), partitionKey));
+    Assert.assertEquals(ImmutableSet.of("donut,100", "scotch,707"), getLines(multi3Manager.get(), partitionKey));
+
+    // check raw output
+    Schema schema1 = Schema.recordOf(
+            "MULTI1",
+            Schema.Field.of("ID", Schema.of(Schema.Type.INT)),
+            Schema.Field.of("NAME", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("tablename", Schema.of(Schema.Type.STRING)));
+    Schema schema2 = Schema.recordOf(
+            "MULTI2",
+            Schema.Field.of("NAME", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("EMAIL", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
+            Schema.Field.of("tablename", Schema.of(Schema.Type.STRING)));
+    Schema schema3 = Schema.recordOf(
+            "MULTI3",
+            Schema.Field.of("ITEM", Schema.of(Schema.Type.STRING)),
+            Schema.Field.of("CODE", Schema.nullableOf(Schema.of(Schema.Type.INT))),
+            Schema.Field.of("tablename", Schema.of(Schema.Type.STRING)));
+
+    DataSetManager<Table> outputManager = getDataset("multiOutput");
+    List<StructuredRecord> outputRecords = MockSink.readOutput(outputManager);
+
+    Set<StructuredRecord> actual = new HashSet<>(outputRecords);
+    Set<StructuredRecord> expected = ImmutableSet.of(
+            StructuredRecord.builder(schema1).set("ID", 0).set("NAME", "samuel").set("tablename", "MULTI1").build(),
+            StructuredRecord.builder(schema1).set("ID", 1).set("NAME", "dwayne").set("tablename", "MULTI1").build(),
+            StructuredRecord.builder(schema2).set("NAME", "samuel").set("EMAIL", "sj@example.com")
+                    .set("tablename", "MULTI2").build(),
+            StructuredRecord.builder(schema2).set("NAME", "dwayne").set("EMAIL", "rock@j.com")
+                    .set("tablename", "MULTI2").build(),
+            StructuredRecord.builder(schema3).set("ITEM", "donut").set("CODE", 100).set("tablename", "MULTI3").build(),
+            StructuredRecord.builder(schema3).set("ITEM", "scotch").set("CODE", 707).set("tablename", "MULTI3").build());
+    Assert.assertEquals(actual.size(), outputRecords.size());
+    Assert.assertTrue(expected.containsAll(actual));
+  }
+
+  private Set<String> getLines(PartitionedFileSet fileset, PartitionKey partitionKey) throws IOException {
+    PartitionDetail partitionDetail = fileset.getPartition(partitionKey);
+    Location location = partitionDetail.getLocation();
+    Set<String> lines = new HashSet<>();
+    for (Location file : location.list()) {
+      String fileName = file.getName();
+      if (fileName.endsWith(".crc") || fileName.startsWith(".")) {
+        continue;
+      }
+      try (BufferedReader reader =
+                   new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          lines.add(line);
         }
+      }
     }
-
-    @Test
-    public void testMultiTableDump() throws Exception {
-        ETLBatchConfig config;
-        AppRequest<ETLBatchConfig> appRequest;
-        ApplicationId appId;
-        ApplicationManager appManager;
-        long logicalStart;
-        WorkflowManager workflowManager;
-        DataSetManager<PartitionedFileSet> multi1Manager;
-        DataSetManager<PartitionedFileSet> multi2Manager;
-        DataSetManager<PartitionedFileSet> multi3Manager;
-        DataSetManager<PartitionedFileSet> blacklist1;
-        DataSetManager<PartitionedFileSet> blacklist2;
-        long timePartition;
-        PartitionKey partitionKey;
-        Schema schema1;
-        Schema schema2;
-        Schema schema3;
-        DataSetManager<Table> outputManager;
-        List<StructuredRecord> outputRecords;
-        Set<StructuredRecord> actual;
-        Set<StructuredRecord> expected;
-        try (Connection conn = DriverManager.getConnection(MYSQL_CONNECTION_STRING, "test_user", "")) {
-            try (Statement stmt = conn.createStatement()) {
-                // note that the tables need quotation marks around them; otherwise, hsql creates them in upper case
-                stmt.execute("CREATE TABLE `MULTI1` (`ID` int(11) NOT NULL, `NAME` varchar(32) NOT NULL DEFAULT '')");
-                stmt.execute("INSERT INTO `MULTI1` VALUES (0, 'samuel'), (1, 'dwayne')");
-
-                stmt.execute("CREATE TABLE `MULTI2` (`NAME` varchar(32) NOT NULL DEFAULT '', `EMAIL` varchar(64))");
-                stmt.execute("INSERT INTO `MULTI2` VALUES ('samuel', 'sj@example.com'), ('dwayne', 'rock@j.com')");
-
-                stmt.execute("CREATE TABLE `MULTI3` (`ITEM` varchar(32) NOT NULL DEFAULT '', `CODE` int(11))");
-                stmt.execute("INSERT INTO `MULTI3` VALUES ('donut', 100), ('scotch', 707)");
-
-                stmt.execute("CREATE TABLE `BLACKLIST1` (`ITEM` varchar(32) NOT NULL DEFAULT '', `CODE` int(11))");
-                stmt.execute("INSERT INTO `BLACKLIST1` VALUES ('orange', 100), ('newblack', 707)");
-
-                stmt.execute("CREATE TABLE `BLACKLIST2` (`ITEM` varchar(32) NOT NULL DEFAULT '', `CODE` int(11))");
-                stmt.execute("INSERT INTO `BLACKLIST2` VALUES ('black', 100), ('mirror', 707)");
-
-            }
-        }
-
-        config = ETLBatchConfig.builder("* * * * *")
-                .addStage(new ETLStage("source", new ETLPlugin("MultiTableDatabase", BatchSource.PLUGIN_TYPE,
-                        ImmutableMap.<String, String>builder()
-                                .put("connectionString", MYSQL_CONNECTION_STRING)
-                                .put("user", "test_user")
-                                .put("jdbcPluginName", "mysql")
-                                .put("referenceName", "seequol")
-                                .put("schemaNamePattern", "testdb")
-                                .put("blackList", "BLACKLIST1,BLACKLIST2")
-                                .put("whiteList", "MULTI1,MULTI2,MULTI3")
-                                .build())))
-                .addStage(new ETLStage("sink1", MockSink.getPlugin("multiOutput")))
-                .addStage(new ETLStage("sink2", new ETLPlugin("DynamicMultiFileset", BatchSink.PLUGIN_TYPE,
-                        ImmutableMap.of("delimiter", ","))))
-                .addConnection("source", "sink1")
-                .addConnection("source", "sink2")
-                .build();
-
-        appRequest = new AppRequest<>(APP_ARTIFACT, config);
-        appId = NamespaceId.DEFAULT.app("multitable");
-        appManager = deployApplication(appId, appRequest);
-
-        logicalStart = System.currentTimeMillis();
-        workflowManager = appManager.getWorkflowManager(SmartWorkflow.NAME);
-        workflowManager.start(ImmutableMap.of("logical.start.time", String.valueOf(logicalStart)));
-        workflowManager.waitForRun(ProgramRunStatus.COMPLETED, 5, TimeUnit.MINUTES);
-
-        // check multi fileset sink
-        multi1Manager = getDataset("MULTI1");
-        multi2Manager = getDataset("MULTI2");
-        multi3Manager = getDataset("MULTI3");
-        blacklist1 = getDataset("BLACKLIST1");
-        blacklist2 = getDataset("BLACKLIST2");
-
-        Assert.assertNull(blacklist1.get());
-        Assert.assertNull(blacklist2.get());
-
-
-        timePartition = TimeUnit.SECONDS.convert(logicalStart, TimeUnit.MILLISECONDS);
-        partitionKey = PartitionKey.builder().addLongField("ingesttime", timePartition).build();
-
-        Assert.assertEquals(ImmutableSet.of("0,samuel", "1,dwayne"), getLines(multi1Manager.get(), partitionKey));
-        Assert.assertEquals(ImmutableSet.of("samuel,sj@example.com", "dwayne,rock@j.com"),
-                getLines(multi2Manager.get(), partitionKey));
-        Assert.assertEquals(ImmutableSet.of("donut,100", "scotch,707"), getLines(multi3Manager.get(), partitionKey));
-
-        // check raw output
-        schema1 = Schema.recordOf(
-                "MULTI1",
-                Schema.Field.of("ID", Schema.of(Schema.Type.INT)),
-                Schema.Field.of("NAME", Schema.of(Schema.Type.STRING)),
-                Schema.Field.of("tablename", Schema.of(Schema.Type.STRING)));
-        schema2 = Schema.recordOf(
-                "MULTI2",
-                Schema.Field.of("NAME", Schema.of(Schema.Type.STRING)),
-                Schema.Field.of("EMAIL", Schema.nullableOf(Schema.of(Schema.Type.STRING))),
-                Schema.Field.of("tablename", Schema.of(Schema.Type.STRING)));
-        schema3 = Schema.recordOf(
-                "MULTI3",
-                Schema.Field.of("ITEM", Schema.of(Schema.Type.STRING)),
-                Schema.Field.of("CODE", Schema.nullableOf(Schema.of(Schema.Type.INT))),
-                Schema.Field.of("tablename", Schema.of(Schema.Type.STRING)));
-
-        outputManager = getDataset("multiOutput");
-        outputRecords = MockSink.readOutput(outputManager);
-
-        actual = new HashSet<>(outputRecords);
-        expected = ImmutableSet.of(
-                StructuredRecord.builder(schema1).set("ID", 0).set("NAME", "samuel").set("tablename", "MULTI1").build(),
-                StructuredRecord.builder(schema1).set("ID", 1).set("NAME", "dwayne").set("tablename", "MULTI1").build(),
-                StructuredRecord.builder(schema2).set("NAME", "samuel").set("EMAIL", "sj@example.com")
-                        .set("tablename", "MULTI2").build(),
-                StructuredRecord.builder(schema2).set("NAME", "dwayne").set("EMAIL", "rock@j.com")
-                        .set("tablename", "MULTI2").build(),
-                StructuredRecord.builder(schema3).set("ITEM", "donut").set("CODE", 100).set("tablename", "MULTI3").build(),
-                StructuredRecord.builder(schema3).set("ITEM", "scotch").set("CODE", 707).set("tablename", "MULTI3").build());
-        Assert.assertEquals(actual.size(), outputRecords.size());
-        Assert.assertTrue(expected.containsAll(actual));
-    }
-
-    private Set<String> getLines(PartitionedFileSet fileset, PartitionKey partitionKey) throws IOException {
-        PartitionDetail partitionDetail = fileset.getPartition(partitionKey);
-        Location location = partitionDetail.getLocation();
-        Set<String> lines = new HashSet<>();
-        for (Location file : location.list()) {
-            String fileName = file.getName();
-            if (fileName.endsWith(".crc") || fileName.startsWith(".")) {
-                continue;
-            }
-            try (BufferedReader reader =
-                         new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    lines.add(line);
-                }
-            }
-        }
-        return lines;
-    }
+    return lines;
+  }
 }
