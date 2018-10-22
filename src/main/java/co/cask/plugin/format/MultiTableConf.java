@@ -85,6 +85,11 @@ public class MultiTableConf extends PluginConfig {
 
   @Macro
   @Nullable
+  @Description("The where clause.")
+  private String whereClause;
+
+  @Macro
+  @Nullable
   @Description("List of tables to fetch from the database. By default all the tables will be white listed")
   private String whiteList;
 
@@ -141,6 +146,9 @@ public class MultiTableConf extends PluginConfig {
     return tableNameField;
   }
 
+  @Nullable
+  public String getWhereClause() { return whereClause; }
+
   public List<String> getWhiteList() {
     if (whiteList != null && !whiteList.isEmpty()) {
       return Arrays.asList(whiteList.split(","));
@@ -165,5 +173,14 @@ public class MultiTableConf extends PluginConfig {
       DriverManager.getConnection(connectionString) : DriverManager.getConnection(connectionString, user, password);
     conn.setAutoCommit(enableAutoCommit);
     return conn;
+  }
+
+  public String appendWhereClause(String selectClause, String table) {
+    StringBuilder query = new StringBuilder(selectClause).append(table);
+    if (whereClause != null && !whereClause.isEmpty()) {
+      query.append(" ").append(whereClause);
+    }
+
+    return query.toString();
   }
 }
