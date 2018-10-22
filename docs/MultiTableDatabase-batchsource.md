@@ -39,6 +39,8 @@ Pattern syntax is specific to the type of database that is being connected to.
 **tableNameField**: The name of the field that holds the table name.
 Must not be the name of any table column that will be read. Defaults to 'tablename'.
 
+**whereClause** The where clause: i.e. ```where updated_at > '2018-08-20 00:00:00'```
+
 **whiteList**: Used in conjunction with tableNamePattern, this configuration specifies tables to be read.
 If no value is specified in the whiteList all tables matching the tableNamePattern will be read.
 By default reads all tables matching the tableNamePattern.

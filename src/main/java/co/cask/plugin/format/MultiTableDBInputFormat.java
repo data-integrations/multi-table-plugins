@@ -88,7 +88,10 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
         // If the table name exists in blacklist or when the whiteList is not empty and does not contain table name
         // the table should not be read
         if (!blackList.contains(tableName) && (whiteList.isEmpty() || whiteList.contains(tableName))) {
-          long numRows = getTableRowCount(table, connection);
+
+          String query = dbConf.appendWhereClause("SELECT COUNT(*) FROM ", table);
+          long numRows = getTableRowCount(connection, query);
+
           Schema schema = getTableSchema(table, connection);
           tableInfos.add(new TableInfo(table, schema));
           splits.add(new DBTableSplit(table, numRows));
@@ -128,9 +131,9 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
     }
   }
 
-  private static long getTableRowCount(String table, Connection connection) throws SQLException {
+  private static long getTableRowCount(Connection connection, String query) throws SQLException {
     try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery("SELECT COUNT(*) FROM " + table)) {
+      try (ResultSet results = statement.executeQuery(query)) {
         results.next();
         return results.getLong(1);
       }
