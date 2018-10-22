@@ -70,7 +70,8 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
       if (results == null) {
         connection = dbConf.getConnection();
         statement = connection.createStatement();
-        results = statement.executeQuery("SELECT * FROM " + tableName);
+        String query = dbConf.appendWhereClause("SELECT * FROM ", tableName);
+        results = statement.executeQuery(query);
         resultMeta = results.getMetaData();
         tableFields = DBTypes.getSchemaFields(results);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
