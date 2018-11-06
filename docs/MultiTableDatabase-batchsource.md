@@ -32,14 +32,16 @@ an exception whenever a commit is called. For drivers like that, this should be 
 Any table whose name matches the pattern will read. If not specified, all tables will be read.
 Pattern syntax is specific to the type of database that is being connected to.
 
+**whereClause**: Filters which records needs to be consumed from each table: i.e. ```where updated_at > '2018-08-20 00:00:00'```
+The ```where``` clause will be applied to every table that is being read, therefore, all the columns that are mentioned 
+in the ```where``` clause should have these columns.
+
 **schemaNamePattern**: A pattern that defines which schemas should be used to list the tables.
 Any schema whose name matches the pattern will read. If not specified, all schema will be read.
 Pattern syntax is specific to the type of database that is being connected to.
 
 **tableNameField**: The name of the field that holds the table name.
 Must not be the name of any table column that will be read. Defaults to 'tablename'.
-
-**whereClause** The where clause: i.e. ```where updated_at > '2018-08-20 00:00:00'```
 
 **whiteList**: Used in conjunction with tableNamePattern, this configuration specifies tables to be read.
 If no value is specified in the whiteList all tables matching the tableNamePattern will be read.

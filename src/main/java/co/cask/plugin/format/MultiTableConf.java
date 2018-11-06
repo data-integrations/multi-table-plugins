@@ -83,6 +83,7 @@ public class MultiTableConf extends PluginConfig {
     "Must not be the name of any table column that will be read. Defaults to 'tablename'.")
   private String tableNameField;
 
+  @Macro
   @Nullable
   @Description("The where clause.")
   private String whereClause;
