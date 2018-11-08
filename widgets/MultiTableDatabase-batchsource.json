@@ -43,6 +43,11 @@
           "name": "tableNamePattern"
         },
         {
+          "widget-type": "textarea",
+          "label": "Where Clause",
+          "name": "whereClause"
+        },
+        {
           "widget-type": "csv",
           "label": "White List of Table Names",
           "name": "whiteList"
