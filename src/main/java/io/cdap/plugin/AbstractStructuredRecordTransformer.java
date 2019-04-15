@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Cask Data, Inc.
+ * Copyright © 2018-2019 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,11 +15,11 @@
  */
 
 
-package co.cask.plugin;
+package io.cdap.plugin;
 
-import co.cask.cdap.api.data.format.StructuredRecord;
-import co.cask.cdap.api.data.schema.Schema;
-import co.cask.hydrator.common.RecordConverter;
+import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.common.RecordConverter;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -27,7 +27,7 @@ import java.io.IOException;
 public abstract class AbstractStructuredRecordTransformer<OUTPUT> extends RecordConverter<StructuredRecord, OUTPUT> {
   protected final Schema outputCDAPSchema;
 
-  public AbstractStructuredRecordTransformer(@Nullable co.cask.cdap.api.data.schema.Schema outputSchema) {
+  public AbstractStructuredRecordTransformer(@Nullable io.cdap.cdap.api.data.schema.Schema outputSchema) {
     outputCDAPSchema = outputSchema;
   }
 

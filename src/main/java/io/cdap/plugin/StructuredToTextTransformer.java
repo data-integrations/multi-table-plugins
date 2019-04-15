@@ -1,5 +1,5 @@
 /*
- * Copyright © 2018 Cask Data, Inc.
+ * Copyright © 2018-2019 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -14,12 +14,12 @@
  * the License.
  */
 
-package co.cask.plugin;
+package io.cdap.plugin;
 
-import co.cask.cdap.api.common.Bytes;
-import co.cask.cdap.api.data.format.StructuredRecord;
-import co.cask.cdap.api.data.format.UnexpectedFormatException;
-import co.cask.cdap.api.data.schema.Schema;
+import io.cdap.cdap.api.common.Bytes;
+import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.format.UnexpectedFormatException;
+import io.cdap.cdap.api.data.schema.Schema;
 import com.google.common.base.Joiner;
 import org.apache.hadoop.io.Text;
 
@@ -31,7 +31,7 @@ import java.util.List;
 public class StructuredToTextTransformer extends AbstractStructuredRecordTransformer<Text> {
   private final Joiner joiner;
 
-  public StructuredToTextTransformer(String delimiter, @Nullable co.cask.cdap.api.data.schema.Schema outputSchema) {
+  public StructuredToTextTransformer(String delimiter, @Nullable io.cdap.cdap.api.data.schema.Schema outputSchema) {
     super(outputSchema);
     this.joiner = Joiner.on(delimiter);
   }

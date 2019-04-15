@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.plugin;
+package io.cdap.plugin;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

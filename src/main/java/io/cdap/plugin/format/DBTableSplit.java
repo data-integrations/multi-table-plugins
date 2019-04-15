@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.plugin.format;
+package io.cdap.plugin.format;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -26,15 +26,15 @@ import java.io.IOException;
 /**
  * A split representing data in a database table.
  */
-public class TableSplit extends InputSplit implements Writable {
+public class DBTableSplit extends InputSplit implements Writable {
   private String tableName;
   private long length;
 
   // used by mapreduce
-  public TableSplit() {
+  public DBTableSplit() {
   }
 
-  public TableSplit(String tableName, long length) {
+  public DBTableSplit(String tableName, long length) {
     this.tableName = tableName;
     this.length = length;
   }
@@ -52,12 +52,17 @@ public class TableSplit extends InputSplit implements Writable {
   }
 
   @Override
-  public long getLength() throws IOException, InterruptedException {
+  public long getLength() {
     return length;
   }
 
   @Override
-  public String[] getLocations() throws IOException, InterruptedException {
+  public String[] getLocations() {
     return new String[0];
   }
+
+  public String getTableName() {
+    return tableName;
+  }
+
 }

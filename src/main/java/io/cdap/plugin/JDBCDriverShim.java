@@ -14,7 +14,7 @@
  * the License.
  */
 
-package co.cask.plugin;
+package io.cdap.plugin;
 
 
 import java.sql.Connection;
