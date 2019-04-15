@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017 Cask Data, Inc.
+ * Copyright © 2017-2019 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -14,15 +14,15 @@
  * the License.
  */
 
-package co.cask.plugin.format;
+package io.cdap.plugin.format;
 
-import co.cask.cdap.api.common.Bytes;
-import co.cask.cdap.api.data.format.StructuredRecord;
-import co.cask.cdap.api.data.schema.Schema;
-import co.cask.plugin.AbstractStructuredRecordTransformer;
-import co.cask.plugin.StructuredToAvroTransformer;
-import co.cask.plugin.StructuredToOrcTransformer;
-import co.cask.plugin.StructuredToTextTransformer;
+import io.cdap.cdap.api.common.Bytes;
+import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.plugin.AbstractStructuredRecordTransformer;
+import io.cdap.plugin.StructuredToAvroTransformer;
+import io.cdap.plugin.StructuredToOrcTransformer;
+import io.cdap.plugin.StructuredToTextTransformer;
 import org.apache.avro.mapred.AvroKey;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.commons.codec.binary.Base64;
