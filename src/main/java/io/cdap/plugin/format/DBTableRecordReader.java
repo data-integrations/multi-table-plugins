@@ -38,7 +38,7 @@ import java.util.List;
  * Record reader that reads the entire contents of a database table using JDBC.
  */
 public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRecord> {
-  private final String tableName;
+  private final DBTableName tableName;
   private final String tableNameField;
   private final MultiTableConf dbConf;
   private final DriverCleanup driverCleanup;
@@ -51,7 +51,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   private Statement statement;
   private ResultSet results;
 
-  DBTableRecordReader(MultiTableConf dbConf, String tableName, String tableNameField, DriverCleanup driverCleanup) {
+  DBTableRecordReader(MultiTableConf dbConf, DBTableName tableName, String tableNameField, DriverCleanup driverCleanup) {
     this.dbConf = dbConf;
     this.tableName = tableName;
     this.tableNameField = tableNameField;
@@ -70,13 +70,13 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
       if (results == null) {
         connection = dbConf.getConnection();
         statement = connection.createStatement();
-        String query = dbConf.appendWhereClause("SELECT * FROM ", tableName);
+        String query = getQuery();
         results = statement.executeQuery(query);
         resultMeta = results.getMetaData();
         tableFields = DBTypes.getSchemaFields(results);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
         schemaFields.add(Schema.Field.of(tableNameField, Schema.of(Schema.Type.STRING)));
-        schema = Schema.recordOf(tableName, schemaFields);
+        schema = Schema.recordOf(tableName.getTable(), schemaFields);
       }
       if (!results.next()) {
         return false;
@@ -97,7 +97,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   @Override
   public StructuredRecord getCurrentValue() throws IOException {
     StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema)
-      .set(tableNameField, tableName);
+      .set(tableNameField, tableName.getTable());
     try {
       for (int i = 0; i < tableFields.size(); i++) {
         Schema.Field field = tableFields.get(i);
@@ -111,7 +111,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   }
 
   @Override
-  public float getProgress() {
+  public float getProgress() throws IOException {
     return pos / (float) split.getLength();
   }
 
@@ -156,5 +156,18 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
     if (exception != null) {
       throw new IOException(exception);
     }
+  }
+
+  private String getQuery() {
+    String query = "SELECT * FROM " + tableName.fullTableName() + " ";
+    String whereClause = dbConf.getWhereClause();
+
+    if (whereClause != null && !whereClause.isEmpty()) {
+      query += whereClause + " AND " + split.getWhereClause();
+    } else {
+      query += "WHERE " + split.getWhereClause();
+    }
+
+    return query;
   }
 }

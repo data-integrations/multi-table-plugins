@@ -20,84 +20,86 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.DriverCleanup;
 import io.cdap.plugin.Drivers;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.MRJobConfig;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.db.BigDecimalSplitter;
+import org.apache.hadoop.mapreduce.lib.db.BooleanSplitter;
+import org.apache.hadoop.mapreduce.lib.db.DBSplitter;
+import org.apache.hadoop.mapreduce.lib.db.DataDrivenDBInputFormat;
+import org.apache.hadoop.mapreduce.lib.db.DateSplitter;
+import org.apache.hadoop.mapreduce.lib.db.FloatSplitter;
+import org.apache.hadoop.mapreduce.lib.db.IntegerSplitter;
+import org.apache.hadoop.mapreduce.lib.db.TextSplitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Input format that reads from multiple tables in a database using JDBC. Similar to Hadoop's DBInputFormat.
  */
-public class  MultiTableDBInputFormat extends InputFormat<NullWritable, StructuredRecord> {
+public class MultiTableDBInputFormat extends InputFormat<NullWritable, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiTableDBInputFormat.class);
-  private static final String CONF_FIELD = "multi.db.plugin.conf";
-  private static final String DRIVER_FIELD = "multi.db.jdbc.connection";
-  private static final String SPLITS_FIELD = "multi.db.jdbc.splits";
-  private static final Type SPLITS_TYPE = new TypeToken<List<DBTableSplit>>() { }.getType();
-  private static final Gson GSON = new Gson();
+  private DriverCleanup driverCleanup;
+  private Connection connection;
 
   /**
    * Configure the input format to read tables from a database. Should be called from the mapreduce client.
    *
-   * @param hConf the job configuration
-   * @param dbConf the database conf
+   * @param hConf       the job configuration
+   * @param dbConf      the database conf
    * @param driverClass the JDBC driver class used to communicate with the database
    * @return Collection of TableInfo containing DB, table and schema.
    */
-  public static Collection<TableInfo> setInput(Configuration hConf, MultiTableConf dbConf,
-                                               Class<? extends Driver> driverClass)
-    throws SQLException, InstantiationException, IllegalAccessException {
+  public static Collection<DBTableInfo> setInput(Configuration hConf, MultiTableConf dbConf,
+                                                 Class<? extends Driver> driverClass) throws SQLException,
+    InstantiationException, IllegalAccessException {
 
-    hConf.set(CONF_FIELD, GSON.toJson(dbConf));
-    hConf.set(DRIVER_FIELD, driverClass.getName());
+    MultiTableDBConfiguration multiTableDBConf = new MultiTableDBConfiguration(hConf);
+    multiTableDBConf.setPluginConfiguration(dbConf);
+    multiTableDBConf.setDriver(driverClass.getName());
 
     DriverCleanup cleanup = Drivers.ensureJDBCDriverIsAvailable(driverClass, dbConf.getConnectionString());
 
     try (Connection connection = dbConf.getConnection()) {
       DatabaseMetaData dbMeta = connection.getMetaData();
       ResultSet tables = dbMeta.getTables(null, dbConf.getSchemaNamePattern(), dbConf.getTableNamePattern(),
-          new String[] {"TABLE", "TABLE_SCHEM"});
-      Collection<TableInfo> tableInfos = new ArrayList<>();
-      List<DBTableSplit> splits = new ArrayList<>();
+                                          new String[]{"TABLE", "TABLE_SCHEM"});
+      List<DBTableInfo> tableInfos = new ArrayList<>();
       List<String> whiteList = dbConf.getWhiteList();
       List<String> blackList = dbConf.getBlackList();
       while (tables.next()) {
         String tableName = tables.getString("TABLE_NAME");
         // this is required for oracle apparently? Don't know why
         String db = tables.getString("TABLE_SCHEM");
-        String table = db == null ? tableName : db + "." + tableName;
+        DBTableName dbTableName = new DBTableName(db, tableName);
         // If the table name exists in blacklist or when the whiteList is not empty and does not contain table name
         // the table should not be read
         if (!blackList.contains(tableName) && (whiteList.isEmpty() || whiteList.contains(tableName))) {
-
-          String query = dbConf.appendWhereClause("SELECT COUNT(*) FROM ", table);
-          long numRows = getTableRowCount(connection, query);
-
-          Schema schema = getTableSchema(table, connection);
-          tableInfos.add(new TableInfo(table, schema));
-          splits.add(new DBTableSplit(table, numRows));
+          List<String> primaryColumns = getPrimaryColumns(dbConf.getSchemaNamePattern(), tableName, dbMeta);
+          Schema schema = getTableSchema(dbTableName.fullTableName(), connection);
+          tableInfos.add(new DBTableInfo(dbTableName, schema, primaryColumns));
         }
       }
-      hConf.set(SPLITS_FIELD, GSON.toJson(splits));
+      multiTableDBConf.setTableInfos(tableInfos);
       return tableInfos;
     } finally {
       cleanup.destroy();
@@ -105,21 +107,46 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
   }
 
   @Override
-  public List<InputSplit> getSplits(JobContext context) {
-    Configuration conf = context.getConfiguration();
-    List<InputSplit> splits = GSON.fromJson(conf.get(SPLITS_FIELD), SPLITS_TYPE);
-    return splits;
+  public List<InputSplit> getSplits(JobContext context) throws IOException {
+    MultiTableDBConfiguration conf = new MultiTableDBConfiguration(context.getConfiguration());
+    MultiTableConf dbConf = conf.getPluginConf();
+
+    int numSplit = 1;
+    if (dbConf.getSplitsPerTable() != null) {
+      numSplit = dbConf.getSplitsPerTable();
+      conf.getConf().setInt(MRJobConfig.NUM_MAPS, numSplit);
+    }
+
+    List<DBTableInfo> tableInfos = conf.getTableInfos();
+    List<InputSplit> resultSplits = new ArrayList<>();
+
+    try (Connection connection = getConnection(conf)) {
+      for (DBTableInfo info : tableInfos) {
+        if (info.getPrimaryKey().size() != 1 || numSplit == 1) {
+          resultSplits.add(new DBTableSplit(info.getDbTableName()));
+        } else {
+          resultSplits.addAll(getTableSplits(connection, conf, info));
+        }
+      }
+    } catch (SQLException | IllegalAccessException | InstantiationException | ClassNotFoundException e) {
+      throw new IOException(e);
+    } finally {
+      closeConnection();
+    }
+
+    return resultSplits;
   }
 
   @Override
   public RecordReader<NullWritable, StructuredRecord> createRecordReader(InputSplit split, TaskAttemptContext context)
     throws IOException {
-    Configuration conf = context.getConfiguration();
+    MultiTableDBConfiguration multiTableDBConf = new MultiTableDBConfiguration(context.getConfiguration());
+    MultiTableConf dbConf = multiTableDBConf.getPluginConf();
+    String driverClassname = multiTableDBConf.getDriverName();
     DBTableSplit dbTableSplit = (DBTableSplit) split;
-    MultiTableConf dbConf = GSON.fromJson(conf.get(CONF_FIELD), MultiTableConf.class);
-    String driverClassname = conf.get(DRIVER_FIELD);
     try {
-      Class<? extends Driver> driverClass = (Class<? extends Driver>) conf.getClassLoader().loadClass(driverClassname);
+      Class<? extends Driver> driverClass = (Class<? extends Driver>)
+        multiTableDBConf.getConf().getClassLoader().loadClass(driverClassname);
       DriverCleanup driverCleanup = Drivers.ensureJDBCDriverIsAvailable(driverClass, dbConf.getConnectionString());
       return new DBTableRecordReader(dbConf, dbTableSplit.getTableName(), dbConf.getTableNameField(), driverCleanup);
     } catch (ClassNotFoundException e) {
@@ -131,13 +158,117 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
     }
   }
 
-  private static long getTableRowCount(Connection connection, String query) throws SQLException {
-    try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery(query)) {
-        results.next();
-        return results.getLong(1);
+  private Connection getConnection(MultiTableDBConfiguration multiTableDBConf) throws IllegalAccessException,
+    SQLException, InstantiationException, ClassNotFoundException {
+    if (connection == null) {
+      MultiTableConf conf = multiTableDBConf.getPluginConf();
+      Class<? extends Driver> driverClass = (Class<? extends Driver>) multiTableDBConf.getConf().getClassLoader()
+        .loadClass(multiTableDBConf.getDriverName());
+      driverCleanup = Drivers.ensureJDBCDriverIsAvailable(driverClass, conf.getConnectionString());
+      connection = conf.getConnection();
+    }
+
+    return connection;
+  }
+
+  private void closeConnection() {
+    try {
+      if (null != this.connection) {
+        if (!connection.isClosed()) {
+          this.connection.close();
+        }
+        this.connection = null;
+      }
+    } catch (SQLException sqlE) {
+      LOG.debug("Exception on close", sqlE);
+    } finally {
+      if (driverCleanup != null) {
+        driverCleanup.destroy();
       }
     }
+  }
+
+  private List<InputSplit> getTableSplits(Connection connection, MultiTableDBConfiguration conf, DBTableInfo info)
+    throws SQLException {
+    String columnName = info.getPrimaryKey().get(0);
+    try (Statement statement = connection.createStatement();
+         ResultSet results = statement.executeQuery(getBoundingValsQuery(info.getDbTableName().fullTableName(),
+                                                                         columnName,
+                                                                         conf.getPluginConf().getWhereClause()))) {
+      results.next();
+
+      // Based on the type of the results, use a different mechanism
+      // for interpolating split points (i.e., numeric splits, text splits,
+      // dates, etc.)
+      int sqlDataType = results.getMetaData().getColumnType(1);
+      DBSplitter splitter = getSplitter(sqlDataType);
+      if (null == splitter) {
+        LOG.info("Failed to create internal splits for table " + info.getDbTableName().fullTableName() +
+                   " only one split will be generated");
+        return Collections.singletonList(new DBTableSplit(info.getDbTableName()));
+      }
+      return splitter.split(conf.getConf(), results, columnName)
+        .stream()
+        .map(split -> convertToDBTableSplit(info, split))
+        .collect(Collectors.toList());
+    }
+  }
+
+  private DBSplitter getSplitter(int sqlDataType) {
+    switch (sqlDataType) {
+      case Types.NUMERIC:
+      case Types.DECIMAL:
+        return new BigDecimalSplitter();
+
+      case Types.BIT:
+      case Types.BOOLEAN:
+        return new BooleanSplitter();
+
+      case Types.INTEGER:
+      case Types.TINYINT:
+      case Types.SMALLINT:
+      case Types.BIGINT:
+        return new IntegerSplitter();
+
+      case Types.REAL:
+      case Types.FLOAT:
+      case Types.DOUBLE:
+        return new FloatSplitter();
+
+      case Types.CHAR:
+      case Types.VARCHAR:
+      case Types.LONGVARCHAR:
+        return new TextSplitter();
+
+      case Types.DATE:
+      case Types.TIME:
+      case Types.TIMESTAMP:
+        return new DateSplitter();
+
+      default:
+        return null;
+    }
+  }
+
+  private String getBoundingValsQuery(String tableName, String splitCol, String whereClause) {
+    // Auto-generate one based on the table name we've been provided with.
+    String query = "SELECT MIN(" + splitCol + "), MAX(" + splitCol + ") FROM ";
+    return appendWhereClause(query, tableName, whereClause);
+  }
+
+  private static DBTableSplit convertToDBTableSplit(DBTableInfo info, InputSplit split) {
+    DataDrivenDBInputFormat.DataDrivenDBInputSplit dataDrivenSplit =
+      (DataDrivenDBInputFormat.DataDrivenDBInputSplit) split;
+    return new DBTableSplit(info.getDbTableName(), dataDrivenSplit.getLowerClause(), dataDrivenSplit.getUpperClause());
+  }
+
+  private static String appendWhereClause(String selectClause, String table, String whereClause) {
+    String query = selectClause + table;
+    if (whereClause != null && !whereClause.isEmpty()) {
+      query += " " + whereClause;
+    }
+
+    return query;
   }
 
   private static Schema getTableSchema(String table, Connection connection) throws SQLException {
@@ -148,14 +279,15 @@ public class  MultiTableDBInputFormat extends InputFormat<NullWritable, Structur
     }
   }
 
-  public static class TableInfo {
+  private static List<String> getPrimaryColumns(String schema, String tableName, DatabaseMetaData metaData)
+    throws SQLException {
+    List<String> columnList = new ArrayList<>();
+    ResultSet primaryColumns = metaData.getPrimaryKeys(null, schema, tableName);
 
-    public String tableName;
-    public Schema schema;
-
-    TableInfo(String tableName, Schema schema) {
-      this.tableName = tableName;
-      this.schema = schema;
+    while (primaryColumns.next()) {
+      columnList.add(primaryColumns.getString("COLUMN_NAME"));
     }
+
+    return columnList;
   }
 }

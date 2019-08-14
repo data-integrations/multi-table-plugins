@@ -18,23 +18,33 @@ package io.cdap.plugin.format;
 
 import io.cdap.cdap.api.data.schema.Schema;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Information about a DB table.
  */
 public class DBTableInfo {
-  private final String name;
+  private final DBTableName dbTableName;
   private final Schema schema;
+  private final List<String> primaryKey;
 
-  public DBTableInfo(String name, Schema schema) {
-    this.name = name;
+  public DBTableInfo(DBTableName dbTableName, Schema schema, List<String> primaryKey) {
+    this.dbTableName = dbTableName;
     this.schema = schema;
+    this.primaryKey = new ArrayList<>(primaryKey);
   }
 
-  public String getName() {
-    return name;
+  public DBTableName getDbTableName() {
+    return dbTableName;
   }
 
   public Schema getSchema() {
     return schema;
+  }
+
+  public List<String> getPrimaryKey() {
+    return Collections.unmodifiableList(primaryKey);
   }
 }

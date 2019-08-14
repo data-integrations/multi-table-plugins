@@ -16,8 +16,7 @@
 
 package io.cdap.plugin.format;
 
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.lib.db.DataDrivenDBInputFormat;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -26,34 +25,44 @@ import java.io.IOException;
 /**
  * A split representing data in a database table.
  */
-public class DBTableSplit extends InputSplit implements Writable {
-  private String tableName;
-  private long length;
+public class DBTableSplit extends DataDrivenDBInputFormat.DataDrivenDBInputSplit {
+  private static final String DEFAULT_CLAUSE = "1=1";
+
+  private DBTableName tableName;
 
   // used by mapreduce
   public DBTableSplit() {
   }
 
-  public DBTableSplit(String tableName, long length) {
+  public DBTableSplit(DBTableName tableName) {
+    this(tableName, DEFAULT_CLAUSE, DEFAULT_CLAUSE);
+  }
+
+  public DBTableSplit(DBTableName tableName, String lower, String upper) {
+    super(getClauseOrDefault(lower), getClauseOrDefault(upper));
     this.tableName = tableName;
-    this.length = length;
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
-    out.writeLong(length);
-    out.writeUTF(tableName);
+    super.write(out);
+    if (tableName.getDb() == null) {
+      out.writeUTF("");
+    } else {
+      out.writeUTF(tableName.getDb());
+    }
+    out.writeUTF(tableName.getTable());
   }
 
   @Override
   public void readFields(DataInput in) throws IOException {
-    length = in.readLong();
-    tableName = in.readUTF();
-  }
-
-  @Override
-  public long getLength() {
-    return length;
+    super.readFields(in);
+    String db = in.readUTF();
+    if (db.isEmpty()) {
+      db = null;
+    }
+    String table = in.readUTF();
+    tableName = new DBTableName(db, table);
   }
 
   @Override
@@ -61,8 +70,16 @@ public class DBTableSplit extends InputSplit implements Writable {
     return new String[0];
   }
 
-  public String getTableName() {
+  public DBTableName getTableName() {
     return tableName;
   }
 
+  public String getWhereClause() {
+    return String.format("(( %s ) AND ( %s ))", getClauseOrDefault(getLowerClause()),
+                         getClauseOrDefault(getUpperClause()));
+  }
+
+  private static String getClauseOrDefault(String value) {
+    return value != null ? value : DEFAULT_CLAUSE;
+  }
 }

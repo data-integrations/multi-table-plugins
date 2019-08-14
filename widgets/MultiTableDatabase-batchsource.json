@@ -66,6 +66,14 @@
           "widget-type": "textbox",
           "label": "Enable Auto Commit",
           "name": "enableAutoCommit"
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Splits Per Table",
+          "name": "splitsPerTable",
+          "widget-attributes": {
+            "default": "1"
+          }
         }
       ]
     }

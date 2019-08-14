@@ -68,13 +68,13 @@ public class MultiTableConf extends PluginConfig {
   @Macro
   @Nullable
   @Description("A schema name pattern to read all the tables. By default all the schemas will " +
-      "be used in the listing call.")
+    "be used in the listing call.")
   private String schemaNamePattern;
 
   @Macro
   @Nullable
   @Description("A pattern that defines which tables should be read from. " +
-               "Any table whose name matches the pattern will read. If not specified, all tables will be read.")
+    "Any table whose name matches the pattern will read. If not specified, all tables will be read.")
   private String tableNamePattern;
 
   @Nullable
@@ -96,6 +96,11 @@ public class MultiTableConf extends PluginConfig {
   @Nullable
   @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be black listed")
   private String blackList;
+
+  @Macro
+  @Nullable
+  @Description("The number of splits per table to generate.")
+  private Integer splitsPerTable;
 
   public MultiTableConf() {
     enableAutoCommit = false;
@@ -146,7 +151,14 @@ public class MultiTableConf extends PluginConfig {
   }
 
   @Nullable
-  public String getWhereClause() { return whereClause; }
+  public Integer getSplitsPerTable() {
+    return splitsPerTable;
+  }
+
+  @Nullable
+  public String getWhereClause() {
+    return whereClause;
+  }
 
   public List<String> getWhiteList() {
     if (whiteList != null && !whiteList.isEmpty()) {
@@ -172,14 +184,5 @@ public class MultiTableConf extends PluginConfig {
       DriverManager.getConnection(connectionString) : DriverManager.getConnection(connectionString, user, password);
     conn.setAutoCommit(enableAutoCommit);
     return conn;
-  }
-
-  public String appendWhereClause(String selectClause, String table) {
-    StringBuilder query = new StringBuilder(selectClause).append(table);
-    if (whereClause != null && !whereClause.isEmpty()) {
-      query.append(" ").append(whereClause);
-    }
-
-    return query.toString();
   }
 }
