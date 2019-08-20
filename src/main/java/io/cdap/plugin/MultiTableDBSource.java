@@ -29,6 +29,7 @@ import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.SourceInputFormatProvider;
+import io.cdap.plugin.format.DBTableInfo;
 import io.cdap.plugin.format.MultiTableConf;
 import io.cdap.plugin.format.MultiTableDBInputFormat;
 import org.apache.hadoop.conf.Configuration;
@@ -72,10 +73,11 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
   public void prepareRun(BatchSourceContext context) throws Exception {
     Configuration hConf = new Configuration();
     Class<? extends Driver> driverClass = context.loadPluginClass(JDBC_PLUGIN_ID);
-    Collection<MultiTableDBInputFormat.TableInfo> tables = MultiTableDBInputFormat.setInput(hConf, conf, driverClass);
+    Collection<DBTableInfo> tables = MultiTableDBInputFormat.setInput(hConf, conf, driverClass);
     SettableArguments arguments = context.getArguments();
-    for (MultiTableDBInputFormat.TableInfo tableInfo : tables) {
-      arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.tableName, tableInfo.schema.toString());
+    for (DBTableInfo tableInfo : tables) {
+      arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.getDbTableName().getTable(),
+                    tableInfo.getSchema().toString());
     }
 
     context.setInput(Input.of(conf.getReferenceName(),

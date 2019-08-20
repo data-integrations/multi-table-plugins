@@ -16,6 +16,9 @@
 
 package io.cdap.plugin;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
 import io.cdap.cdap.api.artifact.ArtifactSummary;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
@@ -44,22 +47,6 @@ import io.cdap.cdap.test.DataSetManager;
 import io.cdap.cdap.test.TestConfiguration;
 import io.cdap.cdap.test.WorkflowManager;
 import io.cdap.plugin.format.MultiTableDBInputFormat;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.orc.mapreduce.OrcOutputFormat;
@@ -72,6 +59,19 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Unit tests for our plugins.
@@ -128,8 +128,8 @@ public class PipelineTest extends HydratorTestBase {
     Connection conn = DriverManager.getConnection(CONNECTION_STRING);
     try (Statement stmt = conn.createStatement()) {
       // note that the tables need quotation marks around them; otherwise, hsql creates them in upper case
-      stmt.execute("CREATE TABLE \"MULTI1\" (ID INT NOT NULL, NAME VARCHAR(32) NOT NULL)");
-      stmt.execute("INSERT INTO \"MULTI1\" VALUES (0, 'samuel'), (1, 'dwayne')");
+      stmt.execute("CREATE TABLE \"MULTI1\" (ID INT NOT NULL, NAME VARCHAR(32) NOT NULL, PRIMARY KEY (ID))");
+      stmt.execute("INSERT INTO \"MULTI1\" VALUES (0, 'samuel'), (1, 'dwayne'), (2, 'dwayne2')");
 
       stmt.execute("CREATE TABLE \"MULTI2\" (NAME VARCHAR(32) NOT NULL, EMAIL VARCHAR(64))");
       stmt.execute("INSERT INTO \"MULTI2\" VALUES ('samuel', 'sj@example.com'), ('dwayne', 'rock@j.com')");
@@ -145,7 +145,8 @@ public class PipelineTest extends HydratorTestBase {
 
     }
 
-    ETLBatchConfig config = ETLBatchConfig.builder("* * * * *")
+    ETLBatchConfig config = ETLBatchConfig.builder()
+      .setTimeSchedule("* * * * *")
       .addStage(new ETLStage("source", new ETLPlugin("MultiTableDatabase", BatchSource.PLUGIN_TYPE,
                                                      ImmutableMap.<String, String>builder()
                                                        .put("connectionString", CONNECTION_STRING)
@@ -153,6 +154,7 @@ public class PipelineTest extends HydratorTestBase {
                                                        .put("referenceName", "seequol")
                                                        .put("blackList", "BLACKLIST1,BLACKLIST2")
                                                        .put("whiteList", "MULTI1,MULTI2,MULTI3")
+                                                       .put("splitsPerTable", "2")
                                                        .build())))
       .addStage(new ETLStage("sink1", MockSink.getPlugin("multiOutput")))
       .addStage(new ETLStage("sink2", new ETLPlugin("DynamicMultiFileset", BatchSink.PLUGIN_TYPE,
@@ -184,7 +186,8 @@ public class PipelineTest extends HydratorTestBase {
     long timePartition = TimeUnit.SECONDS.convert(logicalStart, TimeUnit.MILLISECONDS);
     PartitionKey partitionKey = PartitionKey.builder().addLongField("ingesttime", timePartition).build();
 
-    Assert.assertEquals(ImmutableSet.of("0,samuel", "1,dwayne"), getLines(multi1Manager.get(), partitionKey));
+    Assert.assertEquals(ImmutableSet.of("0,samuel", "1,dwayne", "2,dwayne2"), getLines(multi1Manager.get(),
+                                                                                                    partitionKey));
     Assert.assertEquals(ImmutableSet.of("samuel,sj@example.com", "dwayne,rock@j.com"),
                         getLines(multi2Manager.get(), partitionKey));
     Assert.assertEquals(ImmutableSet.of("donut,100", "scotch,707"), getLines(multi3Manager.get(), partitionKey));
@@ -213,6 +216,7 @@ public class PipelineTest extends HydratorTestBase {
     Set<StructuredRecord> expected = ImmutableSet.of(
       StructuredRecord.builder(schema1).set("ID", 0).set("NAME", "samuel").set("tablename", "MULTI1").build(),
       StructuredRecord.builder(schema1).set("ID", 1).set("NAME", "dwayne").set("tablename", "MULTI1").build(),
+      StructuredRecord.builder(schema1).set("ID", 2).set("NAME", "dwayne2").set("tablename", "MULTI1").build(),
       StructuredRecord.builder(schema2).set("NAME", "samuel").set("EMAIL", "sj@example.com")
         .set("tablename", "MULTI2").build(),
       StructuredRecord.builder(schema2).set("NAME", "dwayne").set("EMAIL", "rock@j.com")
