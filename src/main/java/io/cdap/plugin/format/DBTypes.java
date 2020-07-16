@@ -53,8 +53,7 @@ public class DBTypes {
     // ResultSetMetadata columns are numbered starting with 1
     for (int i = 1; i <= metadata.getColumnCount(); i++) {
       String columnName = metadata.getColumnName(i);
-      int columnSqlType = metadata.getColumnType(i);
-      Schema columnSchema = getSchema(columnSqlType);
+      Schema columnSchema = getSchema(metadata, i);
       if (ResultSetMetaData.columnNullable == metadata.isNullable(i)) {
         columnSchema = Schema.nullableOf(columnSchema);
       }
@@ -65,7 +64,9 @@ public class DBTypes {
   }
 
   // given a sql type return schema type
-  private static Schema getSchema(int sqlType) throws SQLException {
+  private static Schema getSchema(ResultSetMetaData metadata, int column) throws SQLException {
+    int sqlType = metadata.getColumnType(column);
+
     // Type.STRING covers sql types - VARCHAR,CHAR,CLOB,LONGNVARCHAR,LONGVARCHAR,NCHAR,NCLOB,NVARCHAR
     Schema schema = Schema.of(Schema.Type.STRING);
     switch (sqlType) {
@@ -90,6 +91,9 @@ public class DBTypes {
 
       case Types.NUMERIC:
       case Types.DECIMAL:
+        int precision = metadata.getPrecision(column);
+        int scale = metadata.getScale(column);
+        return Schema.decimalOf(precision, scale);
       case Types.DOUBLE:
         return Schema.of(Schema.Type.DOUBLE);
 
@@ -131,7 +135,7 @@ public class DBTypes {
           return record.set(fieldName, ((Number) original).intValue());
         case Types.NUMERIC:
         case Types.DECIMAL:
-          return record.set(fieldName, ((BigDecimal) original).doubleValue());
+          return record.setDecimal(fieldName, ((BigDecimal) original));
         case Types.DATE:
           return record.setDate(fieldName, resultSet.getDate(fieldName).toLocalDate());
         case Types.TIME:
