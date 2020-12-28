@@ -19,6 +19,7 @@ package io.cdap.plugin.format;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.plugin.TransactionIsolationLevel;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -102,6 +103,14 @@ public class MultiTableConf extends PluginConfig {
   @Description("The number of splits per table to generate.")
   private Integer splitsPerTable;
 
+  @Nullable
+  @Description("The transaction isolation level for queries run by this sink. " +
+    "Defaults to TRANSACTION_SERIALIZABLE. See java.sql.Connection#setTransactionIsolation for more details. " +
+    "The Phoenix jdbc driver will throw an exception if the Phoenix database does not have transactions enabled " +
+    "and this setting is set to true. For drivers like that, this should be set to TRANSACTION_NONE.")
+  @Macro
+  public String transactionIsolationLevel;
+
   public MultiTableConf() {
     enableAutoCommit = false;
     tableNameField = "tablename";
@@ -160,6 +169,11 @@ public class MultiTableConf extends PluginConfig {
     return whereClause;
   }
 
+  @Nullable
+  public String getTransactionIsolationLevel() {
+    return transactionIsolationLevel;
+  }
+
   public List<String> getWhiteList() {
     if (whiteList != null && !whiteList.isEmpty()) {
       return Arrays.asList(whiteList.split(","));
@@ -183,6 +197,7 @@ public class MultiTableConf extends PluginConfig {
     Connection conn = user == null ?
       DriverManager.getConnection(connectionString) : DriverManager.getConnection(connectionString, user, password);
     conn.setAutoCommit(enableAutoCommit);
+    conn.setTransactionIsolation(TransactionIsolationLevel.getLevel(transactionIsolationLevel));
     return conn;
   }
 }
