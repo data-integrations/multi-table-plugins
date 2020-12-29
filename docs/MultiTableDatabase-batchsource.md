@@ -53,6 +53,11 @@ By default the black list is empty which means no tables will be skipped.
 
 **Splits Per Table**: The number of splits per table. By default is 1.
 
+**Transaction Isolation Level:** The transaction isolation level for queries run by this sink.
+Defaults to TRANSACTION_SERIALIZABLE. See java.sql.Connection#setTransactionIsolation for more details.
+The Phoenix jdbc driver will throw an exception if the Phoenix database does not have transactions enabled
+and this setting is set to true. For drivers like that, this should be set to TRANSACTION_NONE.
+
 Example
 -------
 
