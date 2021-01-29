@@ -91,7 +91,45 @@
           }
         }
       ]
+    },
+    {
+      "label" : "Error Handling",
+      "properties" : [
+        {
+          "name": "errorHandlingMode",
+          "label": "Error Handling Mode",
+          "widget-type": "radio-group",
+          "widget-attributes": {
+            "layout": "block",
+            "default": "fail-pipeline",
+            "options": [
+              {
+                "id": "skip-table",
+                "label": "Skip table"
+              },
+              {
+                "id": "send-to-error-port",
+                "label": "Send to error port"
+              },
+              {
+                "id": "fail-pipeline",
+                "label": "Fail pipeline"
+              }
+            ]
+          }
+        },
+        {
+          "widget-type": "number",
+          "label": "Failed Table Threshold",
+          "name": "failedTableThreshold",
+          "widget-attributes" : {
+            "default": "0",
+            "min": "0"
+          }
+        }
+      ]
     }
   ],
+  "emit-errors": true,
   "outputs": [ ]
 }

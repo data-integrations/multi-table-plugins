@@ -70,6 +70,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
       if (results == null) {
         connection = dbConf.getConnection();
         statement = connection.createStatement();
+        statement.setQueryTimeout(dbConf.getQueryTimeoutSeconds());
         String query = getQuery();
         results = statement.executeQuery(query);
         resultMeta = results.getMetaData();
