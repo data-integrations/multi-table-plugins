@@ -1,6 +1,6 @@
 package io.cdap.plugin.format.error.emitter;
 
-import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.plugin.format.RecordWrapper;
 import io.cdap.plugin.format.error.ErrorSchema;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -13,7 +13,11 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-public class ErrorEmittingInputFormat extends InputFormat<NullWritable, StructuredRecord> {
+/**
+ * Input Format that can be set up to emit a single Error Record with the configured
+ * errorMessage and exceptionClassName.
+ */
+public class ErrorEmittingInputFormat extends InputFormat<NullWritable, RecordWrapper> {
   private static final String PREFIX = "io.cdap.plugin.format.error.emitter.ErrorEmittingInputFormat.";
   public static final String ERROR_MESSAGE = PREFIX + ErrorSchema.ERROR_MESSAGE;
   public static final String EXCEPTION_CLASS_NAME = PREFIX + ErrorSchema.EXCEPTION_CLASS_NAME;
@@ -28,7 +32,7 @@ public class ErrorEmittingInputFormat extends InputFormat<NullWritable, Structur
   }
 
   @Override
-  public RecordReader<NullWritable, StructuredRecord> createRecordReader(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
+  public RecordReader<NullWritable, RecordWrapper> createRecordReader(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
     ErrorEmittingInputSplit errorSplit = (ErrorEmittingInputSplit) split;
     return new ErrorEmittingRecordReader(errorSplit.getErrorMessage(),
                                          errorSplit.getExceptionClassName());

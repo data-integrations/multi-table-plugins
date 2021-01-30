@@ -117,15 +117,6 @@
               }
             ]
           }
-        },
-        {
-          "widget-type": "number",
-          "label": "Failed Table Threshold",
-          "name": "failedTableThreshold",
-          "widget-attributes" : {
-            "default": "0",
-            "min": "0"
-          }
         }
       ]
     }

@@ -119,11 +119,6 @@ public class MultiTableConf extends PluginConfig {
   public String errorHandlingMode;
 
   @Nullable
-  @Description("How many tables should experience errors before failing the pipeline when \"Fail Pipeline\" is selected " +
-    "as the Error Handling Mode.")
-  public Integer failedTableThreshold;
-
-  @Nullable
   @Description("Query Timeout in Seconds.")
   public Integer queryTimeoutSeconds;
 
@@ -192,10 +187,6 @@ public class MultiTableConf extends PluginConfig {
 
   public String getErrorHandlingMode() {
     return errorHandlingMode != null ? errorHandlingMode : ERROR_HANDLING_FAIL_PIPELINE;
-  }
-
-  public Integer getFailedTableThreshold() {
-    return failedTableThreshold != null ? failedTableThreshold : 0;
   }
 
   public Integer getQueryTimeoutSeconds() {

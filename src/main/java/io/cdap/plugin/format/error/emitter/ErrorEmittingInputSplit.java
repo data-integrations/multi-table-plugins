@@ -5,7 +5,8 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import java.io.IOException;
 
 /**
- * TODO:add
+ * InputSplit that holds information for an errorMessage and exceptionClassName.
+ * This can be used to set up an {@link io.cdap.plugin.format.error.emitter.ErrorEmittingRecordReader}
  */
 public class ErrorEmittingInputSplit extends InputSplit {
   String errorMessage;

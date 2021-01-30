@@ -1,6 +1,6 @@
 package io.cdap.plugin.format.error.emitter;
 
-import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.plugin.format.RecordWrapper;
 import io.cdap.plugin.format.error.ErrorSchema;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -10,9 +10,10 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import java.io.IOException;
 
 /**
- * TODO:add
+ * Record Reader that emits one RecordWrapper with an Invalid Entry.
+ * The contents of the emitted Invalid Entry are taken as parameters to this class.
  */
-public class ErrorEmittingRecordReader extends RecordReader<NullWritable, StructuredRecord> {
+public class ErrorEmittingRecordReader extends RecordReader<NullWritable, RecordWrapper> {
 
   boolean emitted = false;
   String errorMessage;
@@ -51,8 +52,8 @@ public class ErrorEmittingRecordReader extends RecordReader<NullWritable, Struct
   }
 
   @Override
-  public StructuredRecord getCurrentValue() throws IOException, InterruptedException {
-    return ErrorSchema.errorRecord(this.errorMessage, this.exceptionClassName, this.tableName);
+  public RecordWrapper getCurrentValue() throws IOException, InterruptedException {
+    return ErrorSchema.errorRecordWrapper(this.errorMessage, this.exceptionClassName, this.tableName);
   }
 
   @Override

@@ -1,6 +1,6 @@
 package io.cdap.plugin.format.error.collector;
 
-import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.plugin.format.RecordWrapper;
 import io.cdap.plugin.format.error.ErrorSchema;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -12,19 +12,20 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * TODO:add
+ * Record Reader that collects exceptions in the delegate RecordReader.
+ * If an exception is thrown in this delegate, the exception is captured and an Error Record is emitted instead.
  */
-public class ErrorCollectingRecordReader extends RecordReader<NullWritable, StructuredRecord> {
+public class ErrorCollectingRecordReader extends RecordReader<NullWritable, RecordWrapper> {
   private static final Logger LOG = LoggerFactory.getLogger(ErrorCollectingRecordReader.class);
 
-  RecordReader<NullWritable, StructuredRecord> delegate;
+  RecordReader<NullWritable, RecordWrapper> delegate;
   String tableName;
-  StructuredRecord errorRecord;
+  RecordWrapper errorRecordWrapper;
 
-  public ErrorCollectingRecordReader(RecordReader<NullWritable, StructuredRecord> delegate, String tableName) {
+  public ErrorCollectingRecordReader(RecordReader<NullWritable, RecordWrapper> delegate, String tableName) {
     this.delegate = delegate;
     this.tableName = tableName;
-    this.errorRecord = null;
+    this.errorRecordWrapper = null;
   }
 
   @Override
@@ -34,7 +35,7 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Stru
 
   @Override
   public boolean nextKeyValue() throws IOException, InterruptedException {
-    if (errorRecord != null) {
+    if (errorRecordWrapper != null) {
       return false;
     }
 
@@ -42,16 +43,16 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Stru
       return delegate.nextKeyValue();
     } catch (Exception e) {
       LOG.error("Unable to fetch row.", e);
-      this.errorRecord = ErrorSchema.errorRecord("Unable to fetch row.",
-                                                 e.getClass().getCanonicalName(),
-                                                 tableName);
+      this.errorRecordWrapper = ErrorSchema.errorRecordWrapper("Unable to fetch row.",
+                                                               e.getClass().getCanonicalName(),
+                                                               tableName);
       return true;
     }
   }
 
   @Override
   public NullWritable getCurrentKey() throws IOException, InterruptedException {
-    if (this.errorRecord != null) {
+    if (this.errorRecordWrapper != null) {
       return NullWritable.get();
     }
 
@@ -59,9 +60,9 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Stru
   }
 
   @Override
-  public StructuredRecord getCurrentValue() throws IOException, InterruptedException {
-    if (this.errorRecord != null) {
-      return errorRecord;
+  public RecordWrapper getCurrentValue() throws IOException, InterruptedException {
+    if (this.errorRecordWrapper != null) {
+      return errorRecordWrapper;
     }
 
     return delegate.getCurrentValue();
@@ -69,7 +70,7 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Stru
 
   @Override
   public float getProgress() throws IOException, InterruptedException {
-    if (this.errorRecord != null) {
+    if (this.errorRecordWrapper != null) {
       return 100;
     }
 

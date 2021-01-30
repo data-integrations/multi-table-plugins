@@ -25,17 +25,16 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.Emitter;
-import io.cdap.cdap.etl.api.InvalidEntry;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.format.DBTableInfo;
-import io.cdap.plugin.format.error.TableFailureThresholdExceededException;
+import io.cdap.plugin.format.RecordWrapper;
+import io.cdap.plugin.format.error.TableFailureException;
 import io.cdap.plugin.format.error.collector.ErrorCollectingMultiTableDBInputFormat;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingInputFormat;
-import io.cdap.plugin.format.error.ErrorSchema;
 import io.cdap.plugin.format.MultiTableConf;
 import io.cdap.plugin.format.MultiTableDBInputFormat;
 import org.apache.hadoop.conf.Configuration;
@@ -56,17 +55,15 @@ import java.util.Map;
 @Description("Reads from multiple tables in a relational database. " +
   "Outputs one record for each row in each table, with the table name as a record field. " +
   "Also sets a pipeline argument for each table read, which contains the table schema. ")
-public class MultiTableDBSource extends BatchSource<NullWritable, StructuredRecord, StructuredRecord> {
+public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper, StructuredRecord> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiTableDBSource.class);
 
   private static final String JDBC_PLUGIN_ID = "jdbc.driver";
 
   private final MultiTableConf conf;
-  private int numErrors;
 
   public MultiTableDBSource(MultiTableConf conf) {
     this.conf = conf;
-    this.numErrors = 0;
   }
 
   @Override
@@ -130,29 +127,24 @@ public class MultiTableDBSource extends BatchSource<NullWritable, StructuredReco
   }
 
   @Override
-  public void transform(KeyValue<NullWritable, StructuredRecord> input, Emitter<StructuredRecord> emitter) {
-    StructuredRecord record = input.getValue();
+  public void transform(KeyValue<NullWritable, RecordWrapper> input, Emitter<StructuredRecord> emitter) {
+    RecordWrapper wrapper = input.getValue();
 
     // Check if the record is an error.
-    if (ErrorSchema.SCHEMA_NAME.equals(record.getSchema().getRecordName())) {
-      numErrors++;
-
+    if (wrapper.isError()) {
       // Fail the pipeline if the table error threshold exceeds the desired number of table failures.
-      if (MultiTableConf.ERROR_HANDLING_FAIL_PIPELINE.equals(conf.getErrorHandlingMode()) &&
-        numErrors > conf.getFailedTableThreshold()) {
-        throw new TableFailureThresholdExceededException(conf.getFailedTableThreshold(), numErrors);
+      if (MultiTableConf.ERROR_HANDLING_FAIL_PIPELINE.equals(conf.getErrorHandlingMode())) {
+        throw new TableFailureException();
       }
 
       // Emit error record through error port if configured to do so.
       if (MultiTableConf.ERROR_HANDLING_SEND_TO_ERROR_PORT.equals(conf.getErrorHandlingMode())) {
-        emitter.emitError(new InvalidEntry<>(0,
-                                             record.get(ErrorSchema.ERROR_MESSAGE),
-                                             record));
+        emitter.emitError(wrapper.getInvalidEntry());
       }
 
       return;
     }
 
-    emitter.emit(record);
+    emitter.emit(wrapper.getRecord());
   }
 }

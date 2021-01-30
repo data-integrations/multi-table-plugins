@@ -16,9 +16,10 @@
 
 package io.cdap.plugin.format.error.collector;
 
-import io.cdap.cdap.api.data.format.StructuredRecord;
+import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.format.DBTableSplit;
 import io.cdap.plugin.format.MultiTableDBInputFormat;
+import io.cdap.plugin.format.RecordWrapper;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingInputSplit;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingRecordReader;
 import org.apache.hadoop.io.NullWritable;
@@ -35,18 +36,28 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * TODO: add
+ * Input Format that handles exceptions in the delegate MultiTableDBInputFormat and routes them through an emitter.
+ * This allows us to send errors via the Error Emitter for further processing.
  */
-public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWritable, StructuredRecord> {
+public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWritable, RecordWrapper> {
   private static final Logger LOG = LoggerFactory.getLogger(ErrorCollectingMultiTableDBInputFormat.class);
 
-  MultiTableDBInputFormat delegate = new MultiTableDBInputFormat();
+  InputFormat<NullWritable, RecordWrapper> delegate;
+
+  public ErrorCollectingMultiTableDBInputFormat() {
+    this.delegate = new MultiTableDBInputFormat();
+  }
+
+  @VisibleForTesting
+  public ErrorCollectingMultiTableDBInputFormat(InputFormat<NullWritable, RecordWrapper> delegate) {
+    this.delegate = delegate;
+  }
 
   @Override
-  public List<InputSplit> getSplits(JobContext context) throws IOException {
+  public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
     try {
       return delegate.getSplits(context);
-    } catch (IOException e) {
+    } catch (IOException | InterruptedException e) {
       // If there was an exception creating the splits, we create a single ErrorEmittingInputSplit in order to
       LOG.error("Exception creating splits", e);
       InputSplit errorSplit = new ErrorEmittingInputSplit("Exception creating splits",
@@ -56,7 +67,7 @@ public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWrit
   }
 
   @Override
-  public RecordReader<NullWritable, StructuredRecord> createRecordReader(InputSplit split, TaskAttemptContext context) {
+  public RecordReader<NullWritable, RecordWrapper> createRecordReader(InputSplit split, TaskAttemptContext context) {
     // Handle the scenario where the Input Split is already an Error Emitting Input Split.
     // In this case, we supply the error message and exception class name to the ErrorEmittingRecordReader.
     if (split instanceof ErrorEmittingInputSplit) {
@@ -71,7 +82,7 @@ public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWrit
       String tableName = dbTableSplit.getTableName().fullTableName();
 
       //Delegate record reader creation
-      RecordReader<NullWritable, StructuredRecord> reader = delegate.createRecordReader(split, context);
+      RecordReader<NullWritable, RecordWrapper> reader = delegate.createRecordReader(split, context);
 
       //Wrap record reader in the error collecting record reader.
       return new ErrorCollectingRecordReader(reader, tableName);
@@ -80,9 +91,9 @@ public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWrit
     }
   }
 
-  protected RecordReader<NullWritable, StructuredRecord> getErrorEmittingRecordReader(InputSplit split,
-                                                                                      TaskAttemptContext context,
-                                                                                      Exception e) {
+  protected RecordReader<NullWritable, RecordWrapper> getErrorEmittingRecordReader(InputSplit split,
+                                                                                   TaskAttemptContext context,
+                                                                                   Exception e) {
     DBTableSplit dbTableSplit = (DBTableSplit) split;
 
     String errorMessage = String.format("Error creating splits for table '%s'.",
