@@ -43,7 +43,7 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Reco
       return delegate.nextKeyValue();
     } catch (Exception e) {
       LOG.error("Unable to fetch row.", e);
-      this.errorRecordWrapper = ErrorSchema.errorRecordWrapper("Unable to fetch row.",
+      errorRecordWrapper = ErrorSchema.errorRecordWrapper("Unable to fetch row.",
                                                                e.getClass().getCanonicalName(),
                                                                tableName);
       return true;
@@ -52,7 +52,7 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Reco
 
   @Override
   public NullWritable getCurrentKey() throws IOException, InterruptedException {
-    if (this.errorRecordWrapper != null) {
+    if (errorRecordWrapper != null) {
       return NullWritable.get();
     }
 
@@ -61,7 +61,7 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Reco
 
   @Override
   public RecordWrapper getCurrentValue() throws IOException, InterruptedException {
-    if (this.errorRecordWrapper != null) {
+    if (errorRecordWrapper != null) {
       return errorRecordWrapper;
     }
 
@@ -70,7 +70,7 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Reco
 
   @Override
   public float getProgress() throws IOException, InterruptedException {
-    if (this.errorRecordWrapper != null) {
+    if (errorRecordWrapper != null) {
       return 100;
     }
 

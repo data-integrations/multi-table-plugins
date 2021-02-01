@@ -20,8 +20,8 @@ public class ErrorSchema {
     return Schema.recordOf(
       SCHEMA_NAME,
       Schema.Field.of(ERROR_MESSAGE, Schema.of(Schema.Type.STRING)),
-      Schema.Field.of(TABLE_NAME, Schema.of(Schema.Type.STRING)),
-      Schema.Field.of(EXCEPTION_CLASS_NAME, Schema.of(Schema.Type.STRING))
+      Schema.Field.of(EXCEPTION_CLASS_NAME, Schema.of(Schema.Type.STRING)),
+      Schema.Field.of(TABLE_NAME, Schema.nullableOf(Schema.of(Schema.Type.STRING)))
     );
   }
 

@@ -102,7 +102,7 @@ public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWrit
     LOG.error(errorMessage, e);
 
     return new ErrorEmittingRecordReader(errorMessage,
-                                         dbTableSplit.getTableName().fullTableName(),
-                                         e.getClass().getCanonicalName());
+                                         e.getClass().getCanonicalName(),
+                                         dbTableSplit.getTableName().fullTableName());
   }
 }

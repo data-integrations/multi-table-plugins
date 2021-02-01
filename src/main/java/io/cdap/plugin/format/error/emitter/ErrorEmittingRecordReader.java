@@ -25,7 +25,7 @@ public class ErrorEmittingRecordReader extends RecordReader<NullWritable, Record
     this.exceptionClassName = exceptionClassName;
   }
 
-  public ErrorEmittingRecordReader(String errorMessage, String tableName, String exceptionClassName) {
+  public ErrorEmittingRecordReader(String errorMessage, String exceptionClassName, String tableName) {
     this.errorMessage = errorMessage;
     this.tableName = tableName;
     this.exceptionClassName = exceptionClassName;
@@ -48,7 +48,7 @@ public class ErrorEmittingRecordReader extends RecordReader<NullWritable, Record
 
   @Override
   public NullWritable getCurrentKey() throws IOException, InterruptedException {
-    return null;
+    return NullWritable.get();
   }
 
   @Override

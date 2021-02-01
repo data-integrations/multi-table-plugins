@@ -1,15 +1,35 @@
 package io.cdap.plugin.format.error.emitter;
 
+import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.etl.api.InvalidEntry;
+import io.cdap.plugin.format.RecordWrapper;
+import io.cdap.plugin.format.error.ErrorSchema;
+import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Test;
 
-import static org.junit.Assert.*;
+import java.io.IOException;
 
 public class ErrorEmittingRecordReaderTest {
+  ErrorEmittingRecordReader recordReader;
 
   @Before
-  public void setUp() throws Exception {
-
+  public void setUp() {
+    recordReader = new ErrorEmittingRecordReader("errorMessage", "exceptionClass");
   }
 
+  @Test
+  public void testNextKeyValue() throws IOException, InterruptedException {
+    Assert.assertTrue(recordReader.nextKeyValue());
+    //The second time this method is called it will return false.
+    Assert.assertFalse(recordReader.nextKeyValue());
+  }
 
+  @Test
+  public void testGetCurrentValue() throws IOException, InterruptedException {
+    RecordWrapper wrapper = recordReader.getCurrentValue();
+
+    //This should be an error record.
+    Assert.assertTrue(wrapper.isError());
+  }
 }
