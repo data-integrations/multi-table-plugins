@@ -32,7 +32,7 @@ public class ErrorSchema {
   public static final String TABLE_NAME = "table_name";
   public static final String EXCEPTION_CLASS_NAME = "exception_class_name";
 
-  public static Schema getSchema() {
+  public static final Schema getSchema() {
     return Schema.recordOf(
       SCHEMA_NAME,
       Schema.Field.of(ERROR_MESSAGE, Schema.of(Schema.Type.STRING)),

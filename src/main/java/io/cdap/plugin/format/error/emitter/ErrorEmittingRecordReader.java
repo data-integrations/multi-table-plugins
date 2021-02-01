@@ -31,20 +31,21 @@ import java.io.IOException;
  */
 public class ErrorEmittingRecordReader extends RecordReader<NullWritable, RecordWrapper> {
 
-  boolean emitted = false;
-  String errorMessage;
-  String tableName;
-  String exceptionClassName;
+  private boolean emitted = false;
+  private final String errorMessage;
+  private final String tableName;
+  private final String exceptionClassName;
 
   public ErrorEmittingRecordReader(String errorMessage, String exceptionClassName) {
     this.errorMessage = errorMessage;
     this.exceptionClassName = exceptionClassName;
+    this.tableName = null;
   }
 
   public ErrorEmittingRecordReader(String errorMessage, String exceptionClassName, String tableName) {
     this.errorMessage = errorMessage;
-    this.tableName = tableName;
     this.exceptionClassName = exceptionClassName;
+    this.tableName = tableName;
   }
 
   @Override

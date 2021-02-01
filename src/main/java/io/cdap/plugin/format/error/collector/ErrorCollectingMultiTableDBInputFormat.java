@@ -42,7 +42,7 @@ import java.util.List;
 public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWritable, RecordWrapper> {
   private static final Logger LOG = LoggerFactory.getLogger(ErrorCollectingMultiTableDBInputFormat.class);
 
-  InputFormat<NullWritable, RecordWrapper> delegate;
+  private final InputFormat<NullWritable, RecordWrapper> delegate;
 
   public ErrorCollectingMultiTableDBInputFormat() {
     this.delegate = new MultiTableDBInputFormat();

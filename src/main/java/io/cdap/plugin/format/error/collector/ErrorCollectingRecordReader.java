@@ -34,9 +34,9 @@ import java.io.IOException;
 public class ErrorCollectingRecordReader extends RecordReader<NullWritable, RecordWrapper> {
   private static final Logger LOG = LoggerFactory.getLogger(ErrorCollectingRecordReader.class);
 
-  RecordReader<NullWritable, RecordWrapper> delegate;
-  String tableName;
-  RecordWrapper errorRecordWrapper;
+  private final RecordReader<NullWritable, RecordWrapper> delegate;
+  private final String tableName;
+  private RecordWrapper errorRecordWrapper;
 
   public ErrorCollectingRecordReader(RecordReader<NullWritable, RecordWrapper> delegate, String tableName) {
     this.delegate = delegate;
