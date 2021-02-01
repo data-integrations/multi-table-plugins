@@ -37,7 +37,7 @@ import java.util.List;
 /**
  * Record reader that reads the entire contents of a database table using JDBC.
  */
-public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRecord> {
+public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrapper> {
   private final DBTableName tableName;
   private final String tableNameField;
   private final MultiTableConf dbConf;
@@ -51,7 +51,10 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   private Statement statement;
   private ResultSet results;
 
-  DBTableRecordReader(MultiTableConf dbConf, DBTableName tableName, String tableNameField, DriverCleanup driverCleanup) {
+  DBTableRecordReader(MultiTableConf dbConf,
+                      DBTableName tableName,
+                      String tableNameField,
+                      DriverCleanup driverCleanup) {
     this.dbConf = dbConf;
     this.tableName = tableName;
     this.tableNameField = tableNameField;
@@ -70,6 +73,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
       if (results == null) {
         connection = dbConf.getConnection();
         statement = connection.createStatement();
+        statement.setQueryTimeout(dbConf.getQueryTimeoutSeconds());
         String query = getQuery();
         results = statement.executeQuery(query);
         resultMeta = results.getMetaData();
@@ -95,7 +99,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
   }
 
   @Override
-  public StructuredRecord getCurrentValue() throws IOException {
+  public RecordWrapper getCurrentValue() throws IOException {
     StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema)
       .set(tableNameField, tableName.getTable());
     try {
@@ -107,7 +111,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, StructuredRe
     } catch (SQLException e) {
       throw new IOException("Error decoding row from table " + tableName, e);
     }
-    return recordBuilder.build();
+    return new RecordWrapper(recordBuilder.build());
   }
 
   @Override

@@ -25,7 +25,12 @@ import io.cdap.cdap.api.data.batch.Output;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.DatasetProperties;
-import io.cdap.cdap.api.dataset.lib.*;
+import io.cdap.cdap.api.dataset.lib.KeyValue;
+import io.cdap.cdap.api.dataset.lib.PartitionKey;
+import io.cdap.cdap.api.dataset.lib.PartitionedFileSet;
+import io.cdap.cdap.api.dataset.lib.PartitionedFileSetArguments;
+import io.cdap.cdap.api.dataset.lib.PartitionedFileSetProperties;
+import io.cdap.cdap.api.dataset.lib.Partitioning;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.Emitter;
 import io.cdap.cdap.etl.api.batch.BatchSink;
@@ -34,10 +39,10 @@ import io.cdap.plugin.format.RecordFilterOutputFormat;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.NullWritable;
 
-import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * Writes to multiple partitioned file sets.

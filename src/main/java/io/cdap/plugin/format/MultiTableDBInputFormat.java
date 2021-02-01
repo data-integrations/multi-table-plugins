@@ -56,7 +56,7 @@ import java.util.stream.Collectors;
 /**
  * Input format that reads from multiple tables in a database using JDBC. Similar to Hadoop's DBInputFormat.
  */
-public class MultiTableDBInputFormat extends InputFormat<NullWritable, StructuredRecord> {
+public class MultiTableDBInputFormat extends InputFormat<NullWritable, RecordWrapper> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiTableDBInputFormat.class);
   private DriverCleanup driverCleanup;
   private Connection connection;
@@ -138,7 +138,7 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, Structure
   }
 
   @Override
-  public RecordReader<NullWritable, StructuredRecord> createRecordReader(InputSplit split, TaskAttemptContext context)
+  public RecordReader<NullWritable, RecordWrapper> createRecordReader(InputSplit split, TaskAttemptContext context)
     throws IOException {
     MultiTableDBConfiguration multiTableDBConf = new MultiTableDBConfiguration(context.getConfiguration());
     MultiTableConf dbConf = multiTableDBConf.getPluginConf();

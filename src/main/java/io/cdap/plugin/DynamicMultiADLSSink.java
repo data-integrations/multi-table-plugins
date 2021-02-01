@@ -42,12 +42,11 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
-
+import javax.annotation.Nullable;
 
 /**
  * Writes to multiple partitioned file sets.
@@ -61,11 +60,12 @@ import java.util.Map;
   "to write to will be present in the pipeline arguments. Each table to write to must have an argument where " +
   "the key is 'multisink.[name]' and the value is the schema for that fileset. Most of the time, " +
   "this plugin will be used with the MultiTableDatabase source, which will set those pipeline arguments.")
-public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
+public class DynamicMultiADLSSink extends BatchSink<StructuredRecord, NullWritable, StructuredRecord> {
   public static final String TABLE_PREFIX = "multisink.";
 
   private static final Gson GSON = new Gson();
-  private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() { }.getType();
+  private static final Type MAP_STRING_STRING_TYPE = new TypeToken<Map<String, String>>() {
+  }.getType();
 
   private Conf config;
 
@@ -89,13 +89,13 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWrita
       String schema = argument.getValue();
       String dbTableName = key.substring(TABLE_PREFIX.length());
       //dbTableName is of the form db:table
-      String [] parts = dbTableName.split(":");
+      String[] parts = dbTableName.split(":");
       String db = parts[0];
       String name = parts[1];
       Job job = JobUtils.createInstance();
       Configuration conf = job.getConfiguration();
 
-      conf.set(FileOutputFormat.OUTDIR, String.format("%s%s_%s%s",config.adlsBasePath, db, name, config.pathSuffix));
+      conf.set(FileOutputFormat.OUTDIR, String.format("%s%s_%s%s", config.adlsBasePath, db, name, config.pathSuffix));
       conf.set(RecordFilterOutputFormat.FORMAT, config.outputFormat);
       conf.set(RecordFilterOutputFormat.FILTER_FIELD, config.getSplitField());
       conf.set(RecordFilterOutputFormat.PASS_VALUE, name);
@@ -140,7 +140,7 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWrita
 
     @Macro
     @Description("The suffix for ADLS base path. Used in conjunction with the ADLS basepath will produce an " +
-        "outputdirectory which is ADLSBasePath + TableName + suffix")
+      "outputdirectory which is ADLSBasePath + TableName + suffix")
     private String pathSuffix;
 
     @Description("The Microsoft Azure Data Lake client id.")
@@ -166,10 +166,10 @@ public class DynamicMultiADLSSink  extends BatchSink<StructuredRecord, NullWrita
 
     @Nullable
     @Description("Output schema of the JSON document. Required for avro output format. " +
-        "If left empty for text output format, the schema of input records will be used." +
-        "This must be a subset of the schema of input records. " +
-        "Fields of type ARRAY, MAP, and RECORD are not supported with the text format. " +
-        "Fields of type UNION are only supported if they represent a nullable type.")
+      "If left empty for text output format, the schema of input records will be used." +
+      "This must be a subset of the schema of input records. " +
+      "Fields of type ARRAY, MAP, and RECORD are not supported with the text format. " +
+      "Fields of type UNION are only supported if they represent a nullable type.")
     @Macro
     public String schema;
 

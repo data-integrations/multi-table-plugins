@@ -33,6 +33,9 @@ import javax.annotation.Nullable;
  * Configuration for the {@link MultiTableDBInputFormat}.
  */
 public class MultiTableConf extends PluginConfig {
+  public static final String ERROR_HANDLING_SKIP_TABLE = "skip-table";
+  public static final String ERROR_HANDLING_SEND_TO_ERROR_PORT = "send-to-error-port";
+  public static final String ERROR_HANDLING_FAIL_PIPELINE = "fail-pipeline";
 
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
   private String referenceName;
@@ -111,6 +114,14 @@ public class MultiTableConf extends PluginConfig {
   @Macro
   public String transactionIsolationLevel;
 
+  @Nullable
+  @Description("How to handle errors in table processing.")
+  public String errorHandlingMode;
+
+  @Nullable
+  @Description("Query Timeout in Seconds.")
+  public Integer queryTimeoutSeconds;
+
   public MultiTableConf() {
     enableAutoCommit = false;
     tableNameField = "tablename";
@@ -172,6 +183,14 @@ public class MultiTableConf extends PluginConfig {
   @Nullable
   public String getTransactionIsolationLevel() {
     return transactionIsolationLevel;
+  }
+
+  public String getErrorHandlingMode() {
+    return errorHandlingMode != null ? errorHandlingMode : ERROR_HANDLING_FAIL_PIPELINE;
+  }
+
+  public Integer getQueryTimeoutSeconds() {
+    return queryTimeoutSeconds != null ? queryTimeoutSeconds : 600;
   }
 
   public List<String> getWhiteList() {

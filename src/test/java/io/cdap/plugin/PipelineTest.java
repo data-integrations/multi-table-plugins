@@ -47,6 +47,7 @@ import io.cdap.cdap.test.DataSetManager;
 import io.cdap.cdap.test.TestConfiguration;
 import io.cdap.cdap.test.WorkflowManager;
 import io.cdap.plugin.format.MultiTableDBInputFormat;
+import io.cdap.plugin.format.error.collector.ErrorCollectingMultiTableDBInputFormat;
 import org.apache.avro.mapreduce.AvroKeyOutputFormat;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.orc.mapreduce.OrcOutputFormat;
@@ -100,6 +101,7 @@ public class PipelineTest extends HydratorTestBase {
     addPluginArtifact(NamespaceId.DEFAULT.artifact("example-plugins", "1.0.0"),
                       parentArtifact,
                       MultiTableDBSource.class, MultiTableDBInputFormat.class, AvroKeyOutputFormat.class,
+                      ErrorCollectingMultiTableDBInputFormat.class,
                       OrcOutputFormat.class, Base64.class);
 
     // add hypersql 3rd party plugin
@@ -158,7 +160,7 @@ public class PipelineTest extends HydratorTestBase {
                                                        .build())))
       .addStage(new ETLStage("sink1", MockSink.getPlugin("multiOutput")))
       .addStage(new ETLStage("sink2", new ETLPlugin("DynamicMultiFileset", BatchSink.PLUGIN_TYPE,
-                                                   ImmutableMap.of("delimiter", ","))))
+                                                    ImmutableMap.of("delimiter", ","))))
       .addConnection("source", "sink1")
       .addConnection("source", "sink2")
       .build();
@@ -187,7 +189,7 @@ public class PipelineTest extends HydratorTestBase {
     PartitionKey partitionKey = PartitionKey.builder().addLongField("ingesttime", timePartition).build();
 
     Assert.assertEquals(ImmutableSet.of("0,samuel", "1,dwayne", "2,dwayne2"), getLines(multi1Manager.get(),
-                                                                                                    partitionKey));
+                                                                                       partitionKey));
     Assert.assertEquals(ImmutableSet.of("samuel,sj@example.com", "dwayne,rock@j.com"),
                         getLines(multi2Manager.get(), partitionKey));
     Assert.assertEquals(ImmutableSet.of("donut,100", "scotch,707"), getLines(multi3Manager.get(), partitionKey));
