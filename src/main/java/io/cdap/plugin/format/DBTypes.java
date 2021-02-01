@@ -16,10 +16,10 @@
 
 package io.cdap.plugin.format;
 
+import com.google.common.collect.Lists;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.data.schema.UnsupportedTypeException;
-import com.google.common.collect.Lists;
 
 import java.math.BigDecimal;
 import java.sql.Blob;

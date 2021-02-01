@@ -11,7 +11,6 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.jute.Record;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,7 +20,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;

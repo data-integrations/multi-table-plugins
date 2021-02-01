@@ -3,6 +3,9 @@ package io.cdap.plugin.format;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.etl.api.InvalidEntry;
 
+/**
+ * Class used to wrap either a Structured Record (success) or an Invalid Entry (failure).
+ */
 public class RecordWrapper {
   private final StructuredRecord record;
   private final InvalidEntry<StructuredRecord> invalidEntry;

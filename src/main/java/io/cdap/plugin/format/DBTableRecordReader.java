@@ -51,7 +51,10 @@ public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrappe
   private Statement statement;
   private ResultSet results;
 
-  DBTableRecordReader(MultiTableConf dbConf, DBTableName tableName, String tableNameField, DriverCleanup driverCleanup) {
+  DBTableRecordReader(MultiTableConf dbConf,
+                      DBTableName tableName,
+                      String tableNameField,
+                      DriverCleanup driverCleanup) {
     this.dbConf = dbConf;
     this.tableName = tableName;
     this.tableNameField = tableNameField;

@@ -21,9 +21,13 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.common.RecordConverter;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
+import javax.annotation.Nullable;
 
+/**
+ * Record Transformer
+ * @param <OUTPUT> output class
+ */
 public abstract class AbstractStructuredRecordTransformer<OUTPUT> extends RecordConverter<StructuredRecord, OUTPUT> {
   protected final Schema outputCDAPSchema;
 

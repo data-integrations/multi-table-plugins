@@ -1,9 +1,6 @@
 package io.cdap.plugin.format.error.emitter;
 
-import io.cdap.cdap.api.data.format.StructuredRecord;
-import io.cdap.cdap.etl.api.InvalidEntry;
 import io.cdap.plugin.format.RecordWrapper;
-import io.cdap.plugin.format.error.ErrorSchema;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

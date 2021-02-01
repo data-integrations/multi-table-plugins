@@ -22,10 +22,10 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Structured Record to Avro converter

@@ -16,18 +16,21 @@
 
 package io.cdap.plugin;
 
+import com.google.common.base.Joiner;
 import io.cdap.cdap.api.common.Bytes;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
 import io.cdap.cdap.api.data.schema.Schema;
-import com.google.common.base.Joiner;
 import org.apache.hadoop.io.Text;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 
+/**
+ * Structured Record to Text converter
+ */
 public class StructuredToTextTransformer extends AbstractStructuredRecordTransformer<Text> {
   private final Joiner joiner;
 
