@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
 public class MultiTableConf extends PluginConfig {
   public static final String SQL_STATEMENT_SEPARATOR = ";";
   public static final String DATA_SELECTION_MODE_ALLOW_LIST = "allow-list";
-  public static final String DATA_SELECTION_MODE_DISALLOW_LIST = "disallow-list";
+  public static final String DATA_SELECTION_MODE_BLOCK_LIST = "block-list";
   public static final String DATA_SELECTION_MODE_SQL_STATEMENTS = "sql-statements";
   public static final String ERROR_HANDLING_SKIP_TABLE = "skip-table";
   public static final String ERROR_HANDLING_SEND_TO_ERROR_PORT = "send-to-error-port";
@@ -111,7 +111,7 @@ public class MultiTableConf extends PluginConfig {
 
   @Macro
   @Nullable
-  @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be disallowed")
+  @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be blocked")
   private String blackList;
 
   @Macro
@@ -138,7 +138,7 @@ public class MultiTableConf extends PluginConfig {
   public String errorHandlingMode;
 
   @Nullable
-  @Description("Query Timeout in Seconds.")
+  @Description("The Query Timeout in seconds.")
   public Integer queryTimeoutSeconds;
 
   public MultiTableConf() {

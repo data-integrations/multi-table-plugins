@@ -165,11 +165,7 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
     }
   }
 
-  protected String buildTableName(ResultSetMetaData resultMeta) throws SQLException {
-    if (tableName != null) {
-      return tableName;
-    }
-
+  protected static String buildTableName(ResultSetMetaData resultMeta) throws SQLException {
     // LinkedHashSet is used to keep the order in which we encounter distinct tables in the result set.
     Set<String> set = new LinkedHashSet<>();
 

@@ -90,10 +90,12 @@ public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper,
 
     try {
       if (MultiTableConf.DATA_SELECTION_MODE_ALLOW_LIST.equals(conf.getErrorHandlingMode())
-        || MultiTableConf.DATA_SELECTION_MODE_DISALLOW_LIST.equals(conf.getErrorHandlingMode())) {
+        || MultiTableConf.DATA_SELECTION_MODE_BLOCK_LIST.equals(conf.getErrorHandlingMode())) {
+        //Proceed with Multi DB Input
         setContextForMultiTableDBInput(context, hConf, driverClass);
       } else {
-        setContextForMultiStatementInput(context, hConf, driverClass);
+        //Proceed with Multi SQL Statement Input
+        setContextForMultiSQLStatementInput(context, hConf, driverClass);
       }
     } catch (Exception ex) {
       String errorMessage = "Error getting table schemas from database.";
@@ -163,8 +165,8 @@ public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper,
                               new SourceInputFormatProvider(ErrorCollectingMultiTableDBInputFormat.class, hConf)));
   }
 
-  public void setContextForMultiStatementInput(BatchSourceContext context,
-                                               Configuration hConf, Class<? extends Driver> driverClass) {
+  public void setContextForMultiSQLStatementInput(BatchSourceContext context,
+                                                  Configuration hConf, Class<? extends Driver> driverClass) {
     MultiSQLStatementInputFormat.setInput(hConf, conf, driverClass);
 
     context.setInput(Input.of(conf.getReferenceName(),
