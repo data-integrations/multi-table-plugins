@@ -35,15 +35,17 @@ import java.util.List;
  */
 public class ErrorEmittingInputFormat extends InputFormat<NullWritable, RecordWrapper> {
   private static final String PREFIX = "io.cdap.plugin.format.error.emitter.ErrorEmittingInputFormat.";
+  public static final String REFERENCE_NAME = PREFIX + ErrorSchema.REFERENCE_NAME;
   public static final String ERROR_MESSAGE = PREFIX + ErrorSchema.ERROR_MESSAGE;
   public static final String EXCEPTION_CLASS_NAME = PREFIX + ErrorSchema.EXCEPTION_CLASS_NAME;
 
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
+    String referenceName = context.getConfiguration().get(REFERENCE_NAME);
     String errorMessage = context.getConfiguration().get(ERROR_MESSAGE);
     String exceptionClassName = context.getConfiguration().get(EXCEPTION_CLASS_NAME);
 
-    InputSplit errorSplit = new ErrorEmittingInputSplit(errorMessage, exceptionClassName);
+    InputSplit errorSplit = new ErrorEmittingInputSplit(referenceName, errorMessage, exceptionClassName);
     return Collections.singletonList(errorSplit);
   }
 
@@ -51,7 +53,8 @@ public class ErrorEmittingInputFormat extends InputFormat<NullWritable, RecordWr
   public RecordReader<NullWritable, RecordWrapper> createRecordReader(InputSplit split, TaskAttemptContext context)
     throws IOException, InterruptedException {
     ErrorEmittingInputSplit errorSplit = (ErrorEmittingInputSplit) split;
-    return new ErrorEmittingRecordReader(errorSplit.getErrorMessage(),
+    return new ErrorEmittingRecordReader(errorSplit.getReferenceName(),
+                                         errorSplit.getErrorMessage(),
                                          errorSplit.getExceptionClassName());
   }
 }

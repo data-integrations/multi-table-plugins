@@ -48,14 +48,46 @@
           "name": "whereClause"
         },
         {
+          "widget-type": "radio-group",
+          "label": "Data Selection Mode",
+          "name": "dataSelectionMode",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "allow-list",
+            "options": [
+              {
+                "id": "allow-list",
+                "label": "Table Allow List"
+              },
+              {
+                "id": "disallow-list",
+                "label": "Table Disallow List"
+              },
+              {
+                "id": "sql-statements",
+                "label": "Custom SQL Statements"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "csv",
-          "label": "White List of Table Names",
+          "label": "Allow List of Table Names",
           "name": "whiteList"
         },
         {
           "widget-type": "csv",
-          "label": "Black List of Table Names",
+          "label": "Disallow List of Table Names",
           "name": "blackList"
+        },
+        {
+          "widget-type": "csv",
+          "label": "SQL Statements",
+          "name": "sqlStatements",
+          "widget-attributes": {
+            "delimiter": ";",
+            "value-placeholder": "Enter a SQL statement"
+          }
         },
         {
           "widget-type": "textbox",
@@ -117,6 +149,44 @@
               }
             ]
           }
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "name": "allowList",
+      "condition": {
+        "expression": "dataSelectionMode == 'allow-list'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "whiteList"
+        }
+      ]
+    },
+    {
+      "name": "disallowList",
+      "condition": {
+        "expression": "dataSelectionMode == 'disallow-list'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "blackList"
+        }
+      ]
+    },
+    {
+      "name": "sqlStatements",
+      "condition": {
+        "expression": "dataSelectionMode == 'sql-statements'"
+      },
+      "show": [
+        {
+          "type": "property",
+          "name": "sqlStatements"
         }
       ]
     }

@@ -16,7 +16,6 @@
 
 package io.cdap.plugin.format;
 
-
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.DriverCleanup;
@@ -32,38 +31,40 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
- * Record reader that reads the entire contents of a database table using JDBC.
+ * Record reader that executes a supplied SQL statement against a database.
  */
-public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrapper> {
-  private final DBTableName tableName;
-  private final String tableNameField;
+public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordWrapper> {
   private final MultiTableConf dbConf;
+  private final String tableNameField;
   private final DriverCleanup driverCleanup;
-  private DBTableSplit split;
+  private SQLStatementSplit split;
   private int pos;
   private ResultSetMetaData resultMeta;
   private List<Schema.Field> tableFields;
+  private String tableName;
   private Schema schema;
   private Connection connection;
   private Statement statement;
   private ResultSet results;
 
-  DBTableRecordReader(MultiTableConf dbConf,
-                      DBTableName tableName,
-                      String tableNameField,
-                      DriverCleanup driverCleanup) {
+  SQLStatementRecordReader(MultiTableConf dbConf,
+                           String tableNameField,
+                           DriverCleanup driverCleanup) {
     this.dbConf = dbConf;
-    this.tableName = tableName;
     this.tableNameField = tableNameField;
     this.driverCleanup = driverCleanup;
   }
 
   @Override
   public void initialize(InputSplit split, TaskAttemptContext context) {
-    this.split = (DBTableSplit) split;
+    this.split = (SQLStatementSplit) split;
     this.pos = 0;
   }
 
@@ -76,13 +77,13 @@ public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrappe
         if (dbConf.getQueryTimeoutSeconds() != null) {
           statement.setQueryTimeout(dbConf.getQueryTimeoutSeconds());
         }
-        String query = getQuery();
-        results = statement.executeQuery(query);
+        results = statement.executeQuery(split.getSqlStatement());
         resultMeta = results.getMetaData();
+        tableName = buildTableName(resultMeta);
         tableFields = DBTypes.getSchemaFields(results);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
         schemaFields.add(Schema.Field.of(tableNameField, Schema.of(Schema.Type.STRING)));
-        schema = Schema.recordOf(tableName.getTable(), schemaFields);
+        schema = Schema.recordOf(tableName, schemaFields);
       }
       if (!results.next()) {
         return false;
@@ -103,7 +104,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrappe
   @Override
   public RecordWrapper getCurrentValue() throws IOException {
     StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema)
-      .set(tableNameField, tableName.getTable());
+      .set(tableNameField, tableName);
     try {
       for (int i = 0; i < tableFields.size(); i++) {
         Schema.Field field = tableFields.get(i);
@@ -111,7 +112,7 @@ public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrappe
         DBTypes.setValue(recordBuilder, sqlColumnType, results, field.getName());
       }
     } catch (SQLException e) {
-      throw new IOException("Error decoding row from table " + tableName, e);
+      throw new IOException("Error decoding row from statement : '%s'", e);
     }
     return new RecordWrapper(recordBuilder.build());
   }
@@ -164,16 +165,18 @@ public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrappe
     }
   }
 
-  private String getQuery() {
-    String query = "SELECT * FROM " + tableName.fullTableName() + " ";
-    String whereClause = dbConf.getWhereClause();
-
-    if (whereClause != null && !whereClause.isEmpty()) {
-      query += whereClause + " AND " + split.getWhereClause();
-    } else {
-      query += "WHERE " + split.getWhereClause();
+  protected String buildTableName(ResultSetMetaData resultMeta) throws SQLException {
+    if (tableName != null) {
+      return tableName;
     }
 
-    return query;
+    // LinkedHashSet is used to keep the order in which we encounter distinct tables in the result set.
+    Set<String> set = new LinkedHashSet<>();
+
+    for (int i = 1; i <= resultMeta.getColumnCount(); i++) {
+      set.add(resultMeta.getTableName(i));
+    }
+
+    return String.join("_", set);
   }
 }

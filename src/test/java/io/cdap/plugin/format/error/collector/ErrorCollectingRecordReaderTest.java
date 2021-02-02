@@ -37,7 +37,7 @@ public class ErrorCollectingRecordReaderTest {
   @SuppressWarnings("unchecked")
   public void setUp() {
     delegate = mock(RecordReader.class);
-    reader = new ErrorCollectingRecordReader(delegate, "mytable");
+    reader = new ErrorCollectingRecordReader("referenceName", delegate, "mytable");
   }
 
   @Test

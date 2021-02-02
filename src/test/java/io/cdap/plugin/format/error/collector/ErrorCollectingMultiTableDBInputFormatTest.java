@@ -80,7 +80,7 @@ public class ErrorCollectingMultiTableDBInputFormatTest {
 
   @Test
   public void testCreateRecordReaderWithErrorEmittingInputSplit() throws IOException, InterruptedException {
-    is = new ErrorEmittingInputSplit("error", "className");
+    is = new ErrorEmittingInputSplit("referenceName", "error", "className");
 
     RecordReader<NullWritable, RecordWrapper> result = inputFormat.createRecordReader(is, taskCtx);
 

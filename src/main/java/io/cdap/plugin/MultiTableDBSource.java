@@ -31,10 +31,12 @@ import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.format.DBTableInfo;
+import io.cdap.plugin.format.MultiSQLStatementInputFormat;
 import io.cdap.plugin.format.MultiTableConf;
 import io.cdap.plugin.format.MultiTableDBInputFormat;
 import io.cdap.plugin.format.RecordWrapper;
 import io.cdap.plugin.format.error.TableFailureException;
+import io.cdap.plugin.format.error.collector.ErrorCollectingMultiSQLStatementInputFormat;
 import io.cdap.plugin.format.error.collector.ErrorCollectingMultiTableDBInputFormat;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingInputFormat;
 import org.apache.hadoop.conf.Configuration;
@@ -43,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Driver;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -85,19 +88,13 @@ public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper,
     Configuration hConf = new Configuration();
     Class<? extends Driver> driverClass = context.loadPluginClass(JDBC_PLUGIN_ID);
 
-    Collection<DBTableInfo> tables;
-
     try {
-      tables = MultiTableDBInputFormat.setInput(hConf, conf, driverClass);
-
-      SettableArguments arguments = context.getArguments();
-      for (DBTableInfo tableInfo : tables) {
-        arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.getDbTableName().getTable(),
-                      tableInfo.getSchema().toString());
+      if (MultiTableConf.DATA_SELECTION_MODE_ALLOW_LIST.equals(conf.getErrorHandlingMode())
+        || MultiTableConf.DATA_SELECTION_MODE_DISALLOW_LIST.equals(conf.getErrorHandlingMode())) {
+        setContextForMultiTableDBInput(context, hConf, driverClass);
+      } else {
+        setContextForMultiStatementInput(context, hConf, driverClass);
       }
-
-      context.setInput(Input.of(conf.getReferenceName(),
-                                new SourceInputFormatProvider(ErrorCollectingMultiTableDBInputFormat.class, hConf)));
     } catch (Exception ex) {
       String errorMessage = "Error getting table schemas from database.";
       LOG.error(errorMessage, ex);
@@ -146,5 +143,31 @@ public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper,
     }
 
     emitter.emit(wrapper.getRecord());
+  }
+
+  public void setContextForMultiTableDBInput(BatchSourceContext context,
+                                             Configuration hConf, Class<? extends Driver> driverClass)
+    throws IllegalAccessException, SQLException, InstantiationException {
+
+    Collection<DBTableInfo> tables;
+
+    tables = MultiTableDBInputFormat.setInput(hConf, conf, driverClass);
+
+    SettableArguments arguments = context.getArguments();
+    for (DBTableInfo tableInfo : tables) {
+      arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.getDbTableName().getTable(),
+                    tableInfo.getSchema().toString());
+    }
+
+    context.setInput(Input.of(conf.getReferenceName(),
+                              new SourceInputFormatProvider(ErrorCollectingMultiTableDBInputFormat.class, hConf)));
+  }
+
+  public void setContextForMultiStatementInput(BatchSourceContext context,
+                                               Configuration hConf, Class<? extends Driver> driverClass) {
+    MultiSQLStatementInputFormat.setInput(hConf, conf, driverClass);
+
+    context.setInput(Input.of(conf.getReferenceName(),
+                              new SourceInputFormatProvider(ErrorCollectingMultiSQLStatementInputFormat.class, hConf)));
   }
 }

@@ -28,7 +28,9 @@ public class ErrorEmittingRecordReaderTest {
 
   @Before
   public void setUp() {
-    recordReader = new ErrorEmittingRecordReader("errorMessage", "exceptionClass");
+    recordReader = new ErrorEmittingRecordReader("referenceName",
+                                                 "errorMessage",
+                                                 "exceptionClass");
   }
 
   @Test

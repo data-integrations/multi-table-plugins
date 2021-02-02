@@ -32,17 +32,25 @@ import java.io.IOException;
 public class ErrorEmittingRecordReader extends RecordReader<NullWritable, RecordWrapper> {
 
   private boolean emitted = false;
+  private final String referenceName;
   private final String errorMessage;
   private final String tableName;
   private final String exceptionClassName;
 
-  public ErrorEmittingRecordReader(String errorMessage, String exceptionClassName) {
+  public ErrorEmittingRecordReader(String referenceName,
+                                   String errorMessage,
+                                   String exceptionClassName) {
+    this.referenceName = referenceName;
     this.errorMessage = errorMessage;
     this.exceptionClassName = exceptionClassName;
     this.tableName = null;
   }
 
-  public ErrorEmittingRecordReader(String errorMessage, String exceptionClassName, String tableName) {
+  public ErrorEmittingRecordReader(String referenceName,
+                                   String errorMessage,
+                                   String exceptionClassName,
+                                   String tableName) {
+    this.referenceName = referenceName;
     this.errorMessage = errorMessage;
     this.exceptionClassName = exceptionClassName;
     this.tableName = tableName;
@@ -70,7 +78,10 @@ public class ErrorEmittingRecordReader extends RecordReader<NullWritable, Record
 
   @Override
   public RecordWrapper getCurrentValue() throws IOException, InterruptedException {
-    return ErrorSchema.errorRecordWrapper(this.errorMessage, this.exceptionClassName, this.tableName);
+    return ErrorSchema.errorRecordWrapper(this.referenceName,
+                                          this.errorMessage,
+                                          this.exceptionClassName,
+                                          this.tableName);
   }
 
   @Override
