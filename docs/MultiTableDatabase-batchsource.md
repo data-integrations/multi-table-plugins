@@ -266,7 +266,8 @@ WHERE
 Will have the table name `comments_users` as the first returned column comes from the `comments` table.
 
 Note that, as mentioned earlier, the table names are concatenated in order of first appereance, without duplicates:
-```
+
+```sql
 SELECT 
    u.id, 
    s.upvotes, 
