@@ -25,12 +25,18 @@ import java.io.IOException;
  * This can be used to set up an {@link io.cdap.plugin.format.error.emitter.ErrorEmittingRecordReader}
  */
 public class ErrorEmittingInputSplit extends InputSplit {
+  private final String referenceName;
   private final String errorMessage;
   private final String exceptionClassName;
 
-  public ErrorEmittingInputSplit(String errorMessage, String exceptionClassName) {
+  public ErrorEmittingInputSplit(String referenceName, String errorMessage, String exceptionClassName) {
+    this.referenceName = referenceName;
     this.errorMessage = errorMessage;
     this.exceptionClassName = exceptionClassName;
+  }
+
+  public String getReferenceName() {
+    return referenceName;
   }
 
   public String getErrorMessage() {

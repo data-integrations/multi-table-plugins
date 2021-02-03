@@ -17,10 +17,10 @@
 package io.cdap.plugin.format.error.collector;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.cdap.plugin.format.DBTableSplit;
+import io.cdap.plugin.format.MultiSQLStatementInputFormat;
 import io.cdap.plugin.format.MultiTableDBConfiguration;
-import io.cdap.plugin.format.MultiTableDBInputFormat;
 import io.cdap.plugin.format.RecordWrapper;
+import io.cdap.plugin.format.SQLStatementSplit;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingInputSplit;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingRecordReader;
 import org.apache.hadoop.io.NullWritable;
@@ -40,17 +40,17 @@ import java.util.List;
  * Input Format that handles exceptions in the delegate MultiTableDBInputFormat and routes them through an emitter.
  * This allows us to send errors via the Error Emitter for further processing.
  */
-public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWritable, RecordWrapper> {
-  private static final Logger LOG = LoggerFactory.getLogger(ErrorCollectingMultiTableDBInputFormat.class);
+public class ErrorCollectingMultiSQLStatementInputFormat extends InputFormat<NullWritable, RecordWrapper> {
+  private static final Logger LOG = LoggerFactory.getLogger(ErrorCollectingMultiSQLStatementInputFormat.class);
 
   private final InputFormat<NullWritable, RecordWrapper> delegate;
 
-  public ErrorCollectingMultiTableDBInputFormat() {
-    this.delegate = new MultiTableDBInputFormat();
+  public ErrorCollectingMultiSQLStatementInputFormat() {
+    this.delegate = new MultiSQLStatementInputFormat();
   }
 
   @VisibleForTesting
-  public ErrorCollectingMultiTableDBInputFormat(InputFormat<NullWritable, RecordWrapper> delegate) {
+  public ErrorCollectingMultiSQLStatementInputFormat(InputFormat<NullWritable, RecordWrapper> delegate) {
     this.delegate = delegate;
   }
 
@@ -72,28 +72,19 @@ public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWrit
 
   @Override
   public RecordReader<NullWritable, RecordWrapper> createRecordReader(InputSplit split, TaskAttemptContext context) {
-    // Handle the scenario where the Input Split is already an Error Emitting Input Split.
-    // In this case, we supply the error message and exception class name to the ErrorEmittingRecordReader.
-    if (split instanceof ErrorEmittingInputSplit) {
-      ErrorEmittingInputSplit errorSplit = (ErrorEmittingInputSplit) split;
-      return new ErrorEmittingRecordReader(errorSplit.getReferenceName(),
-                                           errorSplit.getErrorMessage(),
-                                           errorSplit.getExceptionClassName());
-    }
-
     try {
       //Get configuration
       MultiTableDBConfiguration multiTableDBConf = new MultiTableDBConfiguration(context.getConfiguration());
 
       //Get table name from Input Split
-      DBTableSplit dbTableSplit = (DBTableSplit) split;
-      String tableName = dbTableSplit.getTableName().fullTableName();
+      SQLStatementSplit sqlStatementSplit = (SQLStatementSplit) split;
+      String statementId = sqlStatementSplit.getStatementId();
 
       //Delegate record reader creation
       RecordReader<NullWritable, RecordWrapper> reader = delegate.createRecordReader(split, context);
 
       //Wrap record reader in the error collecting record reader.
-      return new ErrorCollectingRecordReader(multiTableDBConf.getPluginConf().getReferenceName(), reader, tableName);
+      return new ErrorCollectingRecordReader(multiTableDBConf.getPluginConf().getReferenceName(), reader, statementId);
     } catch (Exception e) {
       return getErrorEmittingRecordReader(split, context, e);
     }
@@ -103,15 +94,14 @@ public class ErrorCollectingMultiTableDBInputFormat extends InputFormat<NullWrit
                                                                                    TaskAttemptContext context,
                                                                                    Exception e) {
     MultiTableDBConfiguration multiTableDBConf = new MultiTableDBConfiguration(context.getConfiguration());
-    DBTableSplit dbTableSplit = (DBTableSplit) split;
+    SQLStatementSplit sqlStatementSplit = (SQLStatementSplit) split;
 
-    String errorMessage = String.format("Error creating splits for table '%s'.",
-                                        dbTableSplit.getTableName().fullTableName());
+    String errorMessage = String.format("Error creating splits for statement '%s'.",
+                                        sqlStatementSplit.getStatementId());
     LOG.error(errorMessage, e);
 
     return new ErrorEmittingRecordReader(multiTableDBConf.getPluginConf().getReferenceName(),
                                          errorMessage,
-                                         e.getClass().getCanonicalName(),
-                                         dbTableSplit.getTableName().fullTableName());
+                                         e.getClass().getCanonicalName());
   }
 }

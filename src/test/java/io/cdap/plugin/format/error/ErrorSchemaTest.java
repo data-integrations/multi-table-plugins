@@ -26,11 +26,15 @@ public class ErrorSchemaTest {
 
   @Test
   public void testCreateErrorRecord() {
-    RecordWrapper wrapper = ErrorSchema.errorRecordWrapper("errorMessage", "exceptionClass", "tableName");
+    RecordWrapper wrapper = ErrorSchema.errorRecordWrapper("referenceName",
+                                                           "errorMessage",
+                                                           "exceptionClass",
+                                                           "tableName");
 
     InvalidEntry<StructuredRecord> invalidEntry = wrapper.getInvalidEntry();
     StructuredRecord invalidRecord = invalidEntry.getInvalidRecord();
 
+    Assert.assertEquals("referenceName", invalidRecord.get(ErrorSchema.REFERENCE_NAME));
     Assert.assertEquals("errorMessage", invalidRecord.get(ErrorSchema.ERROR_MESSAGE));
     Assert.assertEquals("exceptionClass", invalidRecord.get(ErrorSchema.EXCEPTION_CLASS_NAME));
     Assert.assertEquals("tableName", invalidRecord.get(ErrorSchema.TABLE_NAME));
@@ -38,11 +42,12 @@ public class ErrorSchemaTest {
 
   @Test
   public void testCreateErrorRecordWithNullTable() {
-    RecordWrapper wrapper = ErrorSchema.errorRecordWrapper("errorMessage", "exceptionClass", null);
+    RecordWrapper wrapper = ErrorSchema.errorRecordWrapper("referenceName", "errorMessage", "exceptionClass", null);
 
     InvalidEntry<StructuredRecord> invalidEntry = wrapper.getInvalidEntry();
     StructuredRecord invalidRecord = invalidEntry.getInvalidRecord();
 
+    Assert.assertEquals("referenceName", invalidRecord.get(ErrorSchema.REFERENCE_NAME));
     Assert.assertEquals("errorMessage", invalidRecord.get(ErrorSchema.ERROR_MESSAGE));
     Assert.assertEquals("exceptionClass", invalidRecord.get(ErrorSchema.EXCEPTION_CLASS_NAME));
     Assert.assertNull(invalidRecord.get(ErrorSchema.TABLE_NAME));

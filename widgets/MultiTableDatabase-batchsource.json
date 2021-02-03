@@ -33,6 +33,29 @@
           "name": "password"
         },
         {
+          "widget-type": "radio-group",
+          "label": "Data Selection Mode",
+          "name": "dataSelectionMode",
+          "widget-attributes": {
+            "layout": "inline",
+            "default": "allow-list",
+            "options": [
+              {
+                "id": "allow-list",
+                "label": "Table Allow List"
+              },
+              {
+                "id": "block-list",
+                "label": "Table Block List"
+              },
+              {
+                "id": "sql-statements",
+                "label": "Custom SQL Statements"
+              }
+            ]
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Schema Name Pattern",
           "name": "schemaNamePattern"
@@ -49,13 +72,22 @@
         },
         {
           "widget-type": "csv",
-          "label": "White List of Table Names",
+          "label": "Allow List of Table Names",
           "name": "whiteList"
         },
         {
           "widget-type": "csv",
-          "label": "Black List of Table Names",
+          "label": "Block List of Table Names",
           "name": "blackList"
+        },
+        {
+          "widget-type": "csv",
+          "label": "SQL Statements",
+          "name": "sqlStatements",
+          "widget-attributes": {
+            "delimiter": ";",
+            "value-placeholder": "Enter a SQL statement"
+          }
         },
         {
           "widget-type": "textbox",
@@ -74,6 +106,11 @@
           "widget-attributes": {
             "default": "1"
           }
+        },
+        {
+          "widget-type": "textbox",
+          "label": "Query Timeout (Seconds)",
+          "name": "queryTimeoutSeconds"
         },
         {
           "widget-type": "select",
@@ -117,6 +154,61 @@
               }
             ]
           }
+        }
+      ]
+    }
+  ],
+  "filters": [
+    {
+      "name": "tableSelectionFields",
+      "condition": {
+        "expression": "dataSelectionMode == 'allow-list' || dataSelectionMode == 'block-list'"
+      },
+      "show": [
+        {
+          "name": "schemaNamePattern"
+        },
+        {
+          "name": "tableNamePattern"
+        },
+        {
+          "name": "whereClause"
+        },
+        {
+          "name": "splitsPerTable"
+        }
+      ]
+    },
+    {
+      "name": "allowList",
+      "condition": {
+        "expression": "dataSelectionMode == 'allow-list'"
+      },
+      "show": [
+        {
+          "name": "whiteList"
+        }
+      ]
+    },
+    {
+      "name": "blockList",
+      "condition": {
+        "expression": "dataSelectionMode == 'block-list'"
+      },
+      "show": [
+        {
+          "name": "blackList"
+        }
+      ]
+    },
+    {
+      "name": "sqlStatements",
+      "condition": {
+        "expression": "dataSelectionMode == 'sql-statements'"
+      },
+      "show": [
+        {
+          "name": "sqlStatements"
         }
       ]
     }

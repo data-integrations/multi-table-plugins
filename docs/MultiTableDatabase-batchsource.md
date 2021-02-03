@@ -1,7 +1,6 @@
 # MultiTableDatabase Batch Source
 
-Description
------------
+## Description
 
 Reads from multiple tables within a database using JDBC. Often used in conjunction with the DynamicMultiFileset sink
 to perform dumps from multiple tables to HDFS files in a single pipeline. The source will output a record for each
@@ -10,8 +9,7 @@ record came from. In addition, for each table that will be read, this plugin wil
 key is 'multisink.[tablename]' and the value is the schema of the table. This is to make it work with the
 DynamicMultiFileset.
 
-Properties
-----------
+## Properties
 
 **Reference Name**: This will be used to uniquely identify this source for lineage, annotating metadata, etc.
 
@@ -28,38 +26,71 @@ This setting should only matter if you are using a jdbc driver that does not sup
 auto commit, or a driver that does not support the commit call. For example, the Hive jdbc driver will throw
 an exception whenever a commit is called. For drivers like that, this should be set to true.
 
+**Data Selection Mode**: The operation mode for this plugin. There are 3 possible values:
+
+  1. **Allow List**: Define the list of database tables to include.
+  2. **Block List**: Define the list of database tables to exclude.
+  3. **SQL Statements**: Manually define each of the SQL Statement to execute.
+
+Depending on the selected Data Selection Mode, the following options will be available:
+
 **Table Name Pattern**: A pattern that defines which tables should be read from.
 Any table whose name matches the pattern will read. If not specified, all tables will be read.
+Pattern syntax is specific to the type of database that is being connected to. 
+This option is only displayed when the _Data Selection Mode_ is either _Allow List_ or _Block List_.
+
+**Schema Name Pattern**: A pattern that defines which schemas should be used to list the tables.
+Any schema whose name matches the pattern will read. If not specified, all schema will be read.
 Pattern syntax is specific to the type of database that is being connected to.
+This option is only displayed when the _Data Selection Mode_ is either _Allow List_ or _Block List_.
 
 **Where Clause**: Filters which records needs to be consumed from each table: 
 i.e. ```where updated_at > '2018-08-20 00:00:00'```.
 The ```where``` clause will be applied to every table that is being read. Therefore, all the columns that are mentioned 
 in the ```where``` clause should be present in each table.
+This option is only displayed when the _Data Selection Mode_ is either _Allow List_ or _Block List_.
 
-**Schema Name Pattern**: A pattern that defines which schemas should be used to list the tables.
-Any schema whose name matches the pattern will read. If not specified, all schema will be read.
-Pattern syntax is specific to the type of database that is being connected to.
+**Allowlist of Table Names**: Used in conjunction with tableNamePattern, this configuration specifies tables to be read.
+If no value is specified in the whiteList all tables matching the tableNamePattern will be read.
+By default reads all tables matching the tableNamePattern.
+This option is only displayed when the _Data Selection Mode_ is _Allow List_.
+
+**Blocklist of Table Names**: Used in conjunction with tableNamePattern, this configuration specifies the tables to be skipped.
+By default the black list is empty which means no tables will be skipped.
+This option is only displayed when the _Data Selection Mode_ is _Block List_.
+
+**Splits Per Table**: The number of splits per table. By default is 1.
+This option is only displayed when the _Data Selection Mode_ is either _Allow List_ or _Block List_.
+
+**SQL Statements**: List of SQL statements to execute. Each statement will be handled as a different partition.
+When submitting this statements using the API, use a semicolon `;` as a separator.
+If the SQL statement includes a semicolon `;` character, you will need to escape it using `\;`
+. This option is only displayed when the _Data Selection Mode_ is _SQL Statements_.
 
 **Table Name Field**: The name of the field that holds the table name.
 Must not be the name of any table column that will be read. Defaults to 'tablename'.
-
-**White List of Table Names**: Used in conjunction with tableNamePattern, this configuration specifies tables to be read.
-If no value is specified in the whiteList all tables matching the tableNamePattern will be read.
-By default reads all tables matching the tableNamePattern.
-
-**Black List of Table Names**: Used in conjunction with tableNamePattern, this configuration specifies the tables to be skipped.
-By default the black list is empty which means no tables will be skipped.
-
-**Splits Per Table**: The number of splits per table. By default is 1.
 
 **Transaction Isolation Level:** The transaction isolation level for queries run by this sink.
 Defaults to TRANSACTION_SERIALIZABLE. See java.sql.Connection#setTransactionIsolation for more details.
 The Phoenix jdbc driver will throw an exception if the Phoenix database does not have transactions enabled
 and this setting is set to true. For drivers like that, this should be set to TRANSACTION_NONE.
 
-Example
--------
+### Custom SQL Statements
+
+When using the **Data Selection Mode** called **SQL Statements**, the supplied list of SQL statements will be executed 
+as supplied using the specified database connection.
+
+If the query contains a semicolon `;` character as part of the query, this character must be escaped using a backslash `\;`.
+
+Every record that is generated will have a Table Name field (defined by the **Table Name Field** property, which defaults to `tablename`) that identifies the source of each record. 
+The way this Table Name field is derived from a custom SQL statement is a best-guess based on the JDBC API. 
+
+Note that If multiple tables are joined, the resulting table name will be a concatenation of all the distinct 
+table names present in the returned rows for this table, in order of first appearance.
+
+See the **Derived Table Name Examples** section for more details.
+
+## Example
 
 This example reads from all tables in the 'customers' database on host 'host123.example.net':
 
@@ -125,3 +156,132 @@ The output of the the source will be the following records:
     | 4   | 1      | cola     | buy    | activity  |
     | 5   | 1      | pepsi    | buy    | activity  |
     +-----+--------+----------+--------+-----------+
+
+## SQL Statements Example
+
+Suppose you have two tables in the 'customers' database, where `ID` column is the primary key in both tables. 
+The first table is named 'accounts' and contains:
+
+    +-----+----------+------------------+
+    | ID  | name     | email            |
+    +-----+----------+------------------+
+    | 0   | Samuel   | sjax@example.net |
+    | 1   | Alice    | a@example.net    |
+    | 2   | Bob      | b@example.net    |
+    | 3   | John     | j@example.net    |
+    +-----+----------+------------------+
+
+The second is named 'activity' and contains:
+
+    +-----+--------+----------+--------+
+    | ID  | userid | item     | action |
+    +-----+--------+----------+--------+
+    | 0   | 0      | shirt123 | view   |
+    | 1   | 0      | carxyz   | view   |
+    | 2   | 0      | shirt123 | buy    |
+    | 3   | 0      | coffee   | view   |
+    | 4   | 1      | cola     | buy    |
+    | 5   | 1      | pepsi    | buy    |
+    +-----+--------+----------+--------+
+    
+The output of the following query:
+
+```sql
+SELECT
+  accounts.ID AS account_id,
+  accounts.name,
+  accounts.email,
+  activity.ID AS activity_id,
+  activity.item,
+  activity.action
+FROM
+  accounts JOIN
+  activity ON activity.userid = accounts.ID
+```
+
+Will be the following records:
+
+    +------------+--------+------------------+-------------+----------+--------+-------------------+
+    | account_id | name   | email            | activity_id | item     | action | tablename         |
+    +------------+--------+------------------+-------------+----------+--------+-------------------+
+    | 0          | Samuel | sjax@example.net | 0           | shirt123 | view   | accounts_activity |
+    | 0          | Samuel | sjax@example.net | 1           | carxyz   | view   | accounts_activity |
+    | 0          | Samuel | sjax@example.net | 2           | shirt123 | buy    | accounts_activity |
+    | 0          | Samuel | sjax@example.net | 3           | coffee   | view   | accounts_activity |
+    | 1          | Alice  | a@example.net    | 4           | cola     | buy    | accounts_activity |
+    | 1          | Alice  | a@example.net    | 5           | pepsi    | buy    | accounts_activity |
+    +------------+--------+------------------+-------------+----------+--------+-------------------+
+
+
+### Derived Table Name examples
+
+#### Only one table per query
+
+Here are some example tables and the derived table names:
+
+The resulting records for the following query:
+
+```sql
+SELECT 
+  users.id, 
+  users.name 
+FROM 
+  users 
+WHERE 
+  users.name = 'John'
+```
+
+Will have the table name `users`
+
+#### Joined tables
+
+If the query joins multiple tables, the order in which the columns are returned defines the derived table name:
+
+The resulting records for the following query:
+
+```sql
+SELECT 
+  u.id, 
+  c.id 
+FROM 
+  users u JOIN 
+  comments c ON u.id = c.user_id 
+WHERE 
+  u.name = 'John'
+```
+
+Will have the table name `users_comments`. However, the resulting records for the following query:
+
+```sql
+SELECT 
+  c.id, 
+  u.id 
+FROM 
+  users u JOIN 
+  comments c ON u.id = c.user_id 
+WHERE 
+  u.name = 'John'
+```
+
+Will have the table name `comments_users` as the first returned column comes from the `comments` table.
+
+Note that, as mentioned earlier, the table names are concatenated in order of first appereance, without duplicates:
+
+```sql
+SELECT 
+   u.id, 
+   s.upvotes, 
+   s.downvotes, 
+   c.id, 
+   u.username,
+   c.timestamp,
+   s.id
+FROM 
+   users u JOIN 
+   comments c ON u.id = c.user_id JOIN 
+   scores s ON s.comment_id = c.id
+WHERE 
+  u.name = 'John'
+```
+
+Will have the table name `users_scores_comments`.

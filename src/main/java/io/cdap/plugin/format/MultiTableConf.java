@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2019 Cask Data, Inc.
+ * Copyright © 2017-2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.format;
 
+import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.plugin.PluginConfig;
@@ -27,12 +28,19 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 /**
  * Configuration for the {@link MultiTableDBInputFormat}.
  */
 public class MultiTableConf extends PluginConfig {
+  public static final String SQL_STATEMENT_SEPARATOR = ";";
+  public static final String DATA_SELECTION_MODE_ALLOW_LIST = "allow-list";
+  public static final String DATA_SELECTION_MODE_BLOCK_LIST = "block-list";
+  public static final String DATA_SELECTION_MODE_SQL_STATEMENTS = "sql-statements";
   public static final String ERROR_HANDLING_SKIP_TABLE = "skip-table";
   public static final String ERROR_HANDLING_SEND_TO_ERROR_PORT = "send-to-error-port";
   public static final String ERROR_HANDLING_FAIL_PIPELINE = "fail-pipeline";
@@ -93,17 +101,28 @@ public class MultiTableConf extends PluginConfig {
 
   @Macro
   @Nullable
-  @Description("List of tables to fetch from the database. By default all the tables will be white listed")
+  @Description("Data Selection Mode")
+  private String dataSelectionMode;
+
+  @Macro
+  @Nullable
+  @Description("List of tables to fetch from the database. By default all the tables will be allowed")
   private String whiteList;
 
   @Macro
   @Nullable
-  @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be black listed")
+  @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be blocked")
   private String blackList;
 
   @Macro
   @Nullable
-  @Description("The number of splits per table to generate.")
+  @Description("List of SQL statements to execute and fetch from the database.")
+  private String sqlStatements;
+
+  @Macro
+  @Nullable
+  @Description("The number of splits per table to generate. This setting will be ignored when the Data Selection " +
+    "Mode is 'SQL Statements'.")
   private Integer splitsPerTable;
 
   @Nullable
@@ -119,7 +138,7 @@ public class MultiTableConf extends PluginConfig {
   public String errorHandlingMode;
 
   @Nullable
-  @Description("Query Timeout in Seconds.")
+  @Description("The Query Timeout in seconds.")
   public Integer queryTimeoutSeconds;
 
   public MultiTableConf() {
@@ -181,6 +200,11 @@ public class MultiTableConf extends PluginConfig {
   }
 
   @Nullable
+  public String getDataSelectionMode() {
+    return dataSelectionMode;
+  }
+
+  @Nullable
   public String getTransactionIsolationLevel() {
     return transactionIsolationLevel;
   }
@@ -189,8 +213,9 @@ public class MultiTableConf extends PluginConfig {
     return errorHandlingMode != null ? errorHandlingMode : ERROR_HANDLING_FAIL_PIPELINE;
   }
 
+  @Nullable
   public Integer getQueryTimeoutSeconds() {
-    return queryTimeoutSeconds != null ? queryTimeoutSeconds : 600;
+    return queryTimeoutSeconds;
   }
 
   public List<String> getWhiteList() {
@@ -206,6 +231,24 @@ public class MultiTableConf extends PluginConfig {
       return Arrays.asList(blackList.split(","));
     }
     return new ArrayList<>();
+  }
+
+  public List<String> getSqlStatements() {
+    if (sqlStatements != null) {
+      return splitSqlStatements(sqlStatements);
+    }
+    return new ArrayList<>();
+  }
+
+  protected static List<String> splitSqlStatements(String statements) {
+    String regex = "(?<!\\\\)" + Pattern.quote(SQL_STATEMENT_SEPARATOR);
+
+    return Stream.of(statements.split(regex))
+      .map(Strings::nullToEmpty)
+      .filter(s -> !s.isEmpty())
+      .map(s -> s.replace("\\;", ";"))
+      .map(String::trim)
+      .collect(Collectors.toList());
   }
 
   /**

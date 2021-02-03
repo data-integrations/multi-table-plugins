@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import javax.annotation.Nullable;
 
 /**
  * Record Reader that collects exceptions in the delegate RecordReader.
@@ -34,11 +35,15 @@ import java.io.IOException;
 public class ErrorCollectingRecordReader extends RecordReader<NullWritable, RecordWrapper> {
   private static final Logger LOG = LoggerFactory.getLogger(ErrorCollectingRecordReader.class);
 
+  private final String referenceName;
   private final RecordReader<NullWritable, RecordWrapper> delegate;
   private final String tableName;
   private RecordWrapper errorRecordWrapper;
 
-  public ErrorCollectingRecordReader(RecordReader<NullWritable, RecordWrapper> delegate, String tableName) {
+  public ErrorCollectingRecordReader(String referenceName,
+                                     RecordReader<NullWritable, RecordWrapper> delegate,
+                                     @Nullable String tableName) {
+    this.referenceName = referenceName;
     this.delegate = delegate;
     this.tableName = tableName;
     this.errorRecordWrapper = null;
@@ -59,9 +64,10 @@ public class ErrorCollectingRecordReader extends RecordReader<NullWritable, Reco
       return delegate.nextKeyValue();
     } catch (Exception e) {
       LOG.error("Unable to fetch row.", e);
-      errorRecordWrapper = ErrorSchema.errorRecordWrapper("Unable to fetch row.",
-                                                               e.getClass().getCanonicalName(),
-                                                               tableName);
+      errorRecordWrapper = ErrorSchema.errorRecordWrapper(this.referenceName,
+                                                          "Unable to fetch row.",
+                                                          e.getClass().getCanonicalName(),
+                                                          tableName);
       return true;
     }
   }
