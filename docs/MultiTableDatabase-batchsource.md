@@ -1,6 +1,6 @@
 # MultiTableDatabase Batch Source
 
-##Description
+## Description
 
 Reads from multiple tables within a database using JDBC. Often used in conjunction with the DynamicMultiFileset sink
 to perform dumps from multiple tables to HDFS files in a single pipeline. The source will output a record for each
@@ -9,7 +9,7 @@ record came from. In addition, for each table that will be read, this plugin wil
 key is 'multisink.[tablename]' and the value is the schema of the table. This is to make it work with the
 DynamicMultiFileset.
 
-##Properties
+## Properties
 
 **Reference Name**: This will be used to uniquely identify this source for lineage, annotating metadata, etc.
 
@@ -65,7 +65,7 @@ This option is only displayed when the _Data Selection Mode_ is either _Allow Li
 **SQL Statements**: List of SQL statements to execute. Each statement will be handled as a different partition.
 When submitting this statements using the API, use a semicolon `;` as a separator.
 If the SQL statement includes a semicolon `;` character, you will need to escape it using `\;`
-. This option is only displayed when the _Data Selection Mode_ is either _Allow List_ or _Block List_.
+. This option is only displayed when the _Data Selection Mode_ is _SQL Statements_.
 
 **Table Name Field**: The name of the field that holds the table name.
 Must not be the name of any table column that will be read. Defaults to 'tablename'.
@@ -75,7 +75,7 @@ Defaults to TRANSACTION_SERIALIZABLE. See java.sql.Connection#setTransactionIsol
 The Phoenix jdbc driver will throw an exception if the Phoenix database does not have transactions enabled
 and this setting is set to true. For drivers like that, this should be set to TRANSACTION_NONE.
 
-###Custom SQL Statements
+### Custom SQL Statements
 
 When using the **Data Selection Mode** called **SQL Statements**, the supplied list of SQL statements will be executed 
 as supplied using the specified database connection.
@@ -90,7 +90,7 @@ table names present in the returned rows for this table, in order of first appea
 
 See the **Derived Table Name Examples** section for more details.
 
-##Example
+## Example
 
 This example reads from all tables in the 'customers' database on host 'host123.example.net':
 
@@ -157,7 +157,7 @@ The output of the the source will be the following records:
     | 5   | 1      | pepsi    | buy    | activity  |
     +-----+--------+----------+--------+-----------+
 
-##SQL Statements Example
+## SQL Statements Example
 
 Suppose you have two tables in the 'customers' database, where `ID` column is the primary key in both tables. 
 The first table is named 'accounts' and contains:
@@ -213,9 +213,9 @@ Will be the following records:
     +------------+--------+------------------+-------------+----------+--------+-------------------+
 
 
-###Derived Table Name examples
+### Derived Table Name examples
 
-####Only one table per query
+#### Only one table per query
 
 Here are some example tables and the derived table names:
 
@@ -233,7 +233,7 @@ WHERE
 
 Will have the table name `users`
 
-####Joined tables
+#### Joined tables
 
 If the query joins multiple tables, the order in which the columns are returned defines the derived table name:
 
@@ -250,7 +250,7 @@ WHERE
   u.name = 'John'
 ```
 
-Will have the table name `users_comments`, however, the resulting records for the following query:
+Will have the table name `users_comments`. However, the resulting records for the following query:
 
 ```sql
 SELECT 
