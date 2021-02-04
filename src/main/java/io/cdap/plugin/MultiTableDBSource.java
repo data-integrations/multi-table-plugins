@@ -89,8 +89,8 @@ public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper,
     Class<? extends Driver> driverClass = context.loadPluginClass(JDBC_PLUGIN_ID);
 
     try {
-      if (MultiTableConf.DATA_SELECTION_MODE_ALLOW_LIST.equals(conf.getErrorHandlingMode())
-        || MultiTableConf.DATA_SELECTION_MODE_BLOCK_LIST.equals(conf.getErrorHandlingMode())) {
+      if (MultiTableConf.DATA_SELECTION_MODE_ALLOW_LIST.equals(conf.getDataSelectionMode())
+        || MultiTableConf.DATA_SELECTION_MODE_BLOCK_LIST.equals(conf.getDataSelectionMode())) {
         //Proceed with Multi DB Input
         setContextForMultiTableDBInput(context, hConf, driverClass);
       } else {
