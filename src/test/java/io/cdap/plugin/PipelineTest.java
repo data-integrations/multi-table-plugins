@@ -156,6 +156,7 @@ public class PipelineTest extends HydratorTestBase {
                                                        .put("referenceName", "seequol")
                                                        .put("blackList", "BLACKLIST1,BLACKLIST2")
                                                        .put("whiteList", "MULTI1,MULTI2,MULTI3")
+                                                       .put("dataSelectionMode", "allow-list")
                                                        .put("splitsPerTable", "2")
                                                        .build())))
       .addStage(new ETLStage("sink1", MockSink.getPlugin("multiOutput")))

@@ -16,11 +16,15 @@
 
 package io.cdap.plugin.format.error.collector;
 
+import com.google.gson.Gson;
 import io.cdap.plugin.format.DBTableName;
 import io.cdap.plugin.format.DBTableSplit;
+import io.cdap.plugin.format.MultiTableConf;
+import io.cdap.plugin.format.MultiTableDBConfiguration;
 import io.cdap.plugin.format.RecordWrapper;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingInputSplit;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingRecordReader;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -41,11 +45,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class ErrorCollectingMultiTableDBInputFormatTest {
-  JobContext ctx;
-  ErrorCollectingMultiTableDBInputFormat inputFormat;
-  InputFormat<NullWritable, RecordWrapper> delegate;
-  InputSplit is;
-  TaskAttemptContext taskCtx;
+  private static final Gson GSON = new Gson();
+  private JobContext ctx;
+  private ErrorCollectingMultiTableDBInputFormat inputFormat;
+  private InputFormat<NullWritable, RecordWrapper> delegate;
+  private InputSplit is;
+  private TaskAttemptContext taskCtx;
 
   @Before
   @SuppressWarnings("unchecked")
@@ -55,6 +60,13 @@ public class ErrorCollectingMultiTableDBInputFormatTest {
     inputFormat = new ErrorCollectingMultiTableDBInputFormat(delegate);
     is = mock(InputSplit.class);
     taskCtx = mock(TaskAttemptContext.class);
+
+    //Set up configuration.
+    MultiTableConf conf = new MultiTableConf("referenceName");
+    Configuration configuration = new Configuration();
+    configuration.set(MultiTableDBConfiguration.PLUGIN_CONF_FIELD, GSON.toJson(conf));
+    when(ctx.getConfiguration()).thenReturn(configuration);
+    when(taskCtx.getConfiguration()).thenReturn(configuration);
   }
 
   @Test

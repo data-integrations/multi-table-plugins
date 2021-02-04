@@ -16,18 +16,21 @@
 
 package io.cdap.plugin.format.error.emitter;
 
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
 
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 
 /**
  * InputSplit that holds information for an errorMessage and exceptionClassName.
  * This can be used to set up an {@link io.cdap.plugin.format.error.emitter.ErrorEmittingRecordReader}
  */
-public class ErrorEmittingInputSplit extends InputSplit {
-  private final String referenceName;
-  private final String errorMessage;
-  private final String exceptionClassName;
+public class ErrorEmittingInputSplit extends InputSplit implements Writable {
+  private String referenceName;
+  private String errorMessage;
+  private String exceptionClassName;
 
   public ErrorEmittingInputSplit(String referenceName, String errorMessage, String exceptionClassName) {
     this.referenceName = referenceName;
@@ -55,6 +58,20 @@ public class ErrorEmittingInputSplit extends InputSplit {
   @Override
   public String[] getLocations() throws IOException, InterruptedException {
     return new String[0];
+  }
+
+  @Override
+  public void write(DataOutput dataOutput) throws IOException {
+    dataOutput.writeUTF(referenceName);
+    dataOutput.writeUTF(errorMessage);
+    dataOutput.writeUTF(exceptionClassName);
+  }
+
+  @Override
+  public void readFields(DataInput dataInput) throws IOException {
+    referenceName = dataInput.readUTF();
+    errorMessage = dataInput.readUTF();
+    exceptionClassName = dataInput.readUTF();
   }
 }
 

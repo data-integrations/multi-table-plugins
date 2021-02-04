@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.format;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
@@ -145,6 +146,14 @@ public class MultiTableConf extends PluginConfig {
     enableAutoCommit = false;
     tableNameField = "tablename";
   }
+
+  @VisibleForTesting
+  public MultiTableConf(String referenceName) {
+    enableAutoCommit = false;
+    tableNameField = "tablename";
+    this.referenceName = referenceName;
+  }
+
 
   public String getReferenceName() {
     return referenceName;
