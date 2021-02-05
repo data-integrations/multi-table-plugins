@@ -78,13 +78,13 @@ public class ErrorCollectingMultiSQLStatementInputFormat extends InputFormat<Nul
 
       //Get table name from Input Split
       SQLStatementSplit sqlStatementSplit = (SQLStatementSplit) split;
-      String statementId = sqlStatementSplit.getStatementId();
+      String statementRef = sqlStatementSplit.getId();
 
       //Delegate record reader creation
       RecordReader<NullWritable, RecordWrapper> reader = delegate.createRecordReader(split, context);
 
       //Wrap record reader in the error collecting record reader.
-      return new ErrorCollectingRecordReader(multiTableDBConf.getPluginConf().getReferenceName(), reader, statementId);
+      return new ErrorCollectingRecordReader(multiTableDBConf.getPluginConf().getReferenceName(), reader, statementRef);
     } catch (Exception e) {
       return getErrorEmittingRecordReader(split, context, e);
     }
@@ -96,8 +96,8 @@ public class ErrorCollectingMultiSQLStatementInputFormat extends InputFormat<Nul
     MultiTableDBConfiguration multiTableDBConf = new MultiTableDBConfiguration(context.getConfiguration());
     SQLStatementSplit sqlStatementSplit = (SQLStatementSplit) split;
 
-    String errorMessage = String.format("Error creating splits for statement '%s'.",
-                                        sqlStatementSplit.getStatementId());
+    String errorMessage = String.format("Error creating record reader for statement '%s'.",
+                                        sqlStatementSplit.getId());
     LOG.error(errorMessage, e);
 
     return new ErrorEmittingRecordReader(multiTableDBConf.getPluginConf().getReferenceName(),

@@ -31,11 +31,13 @@ public class MultiTableDBConfiguration extends DBConfiguration {
   public static final String PLUGIN_CONF_FIELD = "multi.db.plugin.conf";
   public static final String DRIVER_FIELD = "multi.db.jdbc.connection";
   public static final String INFO_FIELD = "multi.db.jdbc.dbinfo";
-  public static final String SQL_STATEMENTS_FIELD = "multi.db.jdbc.sql_statements";
+  public static final String SQL_STATEMENTS_FIELD = "multi.db.jdbc.custom_sql.sql_statements";
+  public static final String TABLE_ALIASES_FIELD = "multi.db.jdbc.custom_sql.table_aliases";
 
   private static final Type PLUGIN_CONF_TYPE = new TypeToken<MultiTableConf>() { }.getType();
   private static final Type INFO_TYPE = new TypeToken<List<DBTableInfo>>() { }.getType();
   private static final Type SQL_STATEMENTS_TYPE = new TypeToken<List<String>>() { }.getType();
+  private static final Type TABLE_ALIASES_TYPE = new TypeToken<List<String>>() { }.getType();
 
   private static final Gson GSON = new Gson();
 
@@ -59,6 +61,10 @@ public class MultiTableDBConfiguration extends DBConfiguration {
     set(SQL_STATEMENTS_FIELD, GSON.toJson(sqlStatements));
   }
 
+  public void setTableAliases(List<String> tableAliases) {
+    set(TABLE_ALIASES_FIELD, GSON.toJson(tableAliases));
+  }
+
   public MultiTableConf getPluginConf() {
     return GSON.fromJson(getConf().get(PLUGIN_CONF_FIELD), PLUGIN_CONF_TYPE);
   }
@@ -73,6 +79,10 @@ public class MultiTableDBConfiguration extends DBConfiguration {
 
   public List<String> getSqlStatements() {
     return GSON.fromJson(getConf().get(SQL_STATEMENTS_FIELD), SQL_STATEMENTS_TYPE);
+  }
+
+  public List<String> getTableAliases() {
+    return GSON.fromJson(getConf().get(TABLE_ALIASES_FIELD), TABLE_ALIASES_TYPE);
   }
 
   private void set(String key, String value) {

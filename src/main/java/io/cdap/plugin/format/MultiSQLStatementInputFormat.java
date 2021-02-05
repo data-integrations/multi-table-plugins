@@ -55,6 +55,7 @@ public class MultiSQLStatementInputFormat extends InputFormat<NullWritable, Reco
     multiTableDBConf.setPluginConfiguration(dbConf);
     multiTableDBConf.setDriver(driverClass.getName());
     multiTableDBConf.setSqlStatements(dbConf.getSqlStatements());
+    multiTableDBConf.setTableAliases(dbConf.getTableAliases());
   }
 
   @Override
@@ -62,12 +63,23 @@ public class MultiSQLStatementInputFormat extends InputFormat<NullWritable, Reco
     MultiTableDBConfiguration conf = new MultiTableDBConfiguration(context.getConfiguration());
 
     List<String> sqlStatements = conf.getSqlStatements();
+    List<String> tableAliases = conf.getTableAliases();
     List<InputSplit> resultSplits = new ArrayList<>();
 
-    int ix = 1;
-    for (String statement : sqlStatements) {
-      resultSplits.add(new SQLStatementSplit("Statement #" + ix, statement));
-      ix++;
+    if (tableAliases.size() == 0) {
+      tableAliases = new ArrayList<>(sqlStatements.size());
+      while (tableAliases.size() < sqlStatements.size()) {
+        tableAliases.add("");
+      }
+    }
+
+
+    for (int i = 0; i < sqlStatements.size(); i++) {
+      SQLStatementSplit split = new SQLStatementSplit("Statement #" + (i + 1),
+                                                      sqlStatements.get(i),
+                                                      tableAliases.get(i),
+                                                      "sql_statement_" + (i + 1));
+      resultSplits.add(split);
     }
 
     return resultSplits;
@@ -89,7 +101,7 @@ public class MultiSQLStatementInputFormat extends InputFormat<NullWritable, Reco
         new SQLStatementRecordReader(dbConf,
                                      dbConf.getTableNameField(),
                                      driverCleanup),
-        sqlStatementSplit.getStatementId());
+        sqlStatementSplit.getTableAlias());
     } catch (ClassNotFoundException e) {
       LOG.error("Could not load jdbc driver class {}", driverClassname);
       throw new IOException(e);

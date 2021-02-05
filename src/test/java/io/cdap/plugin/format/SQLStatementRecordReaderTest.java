@@ -22,11 +22,52 @@ import org.junit.Test;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
-import static io.cdap.plugin.format.SQLStatementRecordReader.buildTableName;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class SQLStatementRecordReaderTest {
+
+  @Test
+  public void testGetTableNameWithValidAlias() throws SQLException {
+    ResultSetMetaData meta = mock(ResultSetMetaData.class);
+    when(meta.getColumnCount()).thenReturn(1);
+    when(meta.getTableName(1)).thenReturn("a");
+
+    SQLStatementSplit split = new SQLStatementSplit("ref", "select 1;", "alias", "fallback");
+
+    Assert.assertEquals("alias", SQLStatementRecordReader.getTableName(split, meta));
+    verify(meta, times(0)).getColumnCount();
+    verify(meta, times(0)).getTableName(anyInt());
+  }
+
+  @Test
+  public void testGetTableNameWithComputedTableName() throws SQLException {
+    ResultSetMetaData meta = mock(ResultSetMetaData.class);
+    when(meta.getColumnCount()).thenReturn(1);
+    when(meta.getTableName(1)).thenReturn("a");
+
+    SQLStatementSplit split = new SQLStatementSplit("ref", "select 1;", "", "fallback");
+
+    Assert.assertEquals("a", SQLStatementRecordReader.getTableName(split, meta));
+    verify(meta, times(2)).getColumnCount();
+    verify(meta, times(1)).getTableName(anyInt());
+  }
+
+  @Test
+  public void testGetTableNameWithFallback() throws SQLException {
+    ResultSetMetaData meta = mock(ResultSetMetaData.class);
+    when(meta.getColumnCount()).thenReturn(1);
+    when(meta.getTableName(1)).thenReturn("");
+
+    SQLStatementSplit split = new SQLStatementSplit("ref", "select 1;", "", "fallback");
+
+    Assert.assertEquals("fallback", SQLStatementRecordReader.getTableName(split, meta));
+    verify(meta, times(2)).getColumnCount();
+    verify(meta, times(1)).getTableName(anyInt());
+  }
 
   @Test
   public void testBuildTableName1() throws SQLException {
@@ -37,7 +78,7 @@ public class SQLStatementRecordReaderTest {
     when(meta.getTableName(2)).thenReturn("a");
     when(meta.getTableName(3)).thenReturn("a");
 
-    Assert.assertEquals("a", buildTableName(meta));
+    Assert.assertEquals("a", SQLStatementRecordReader.buildTableName(meta));
   }
 
   @Test
@@ -49,7 +90,7 @@ public class SQLStatementRecordReaderTest {
     when(meta.getTableName(2)).thenReturn("a");
     when(meta.getTableName(3)).thenReturn("b");
 
-    Assert.assertEquals("a_b", buildTableName(meta));
+    Assert.assertEquals("a_b", SQLStatementRecordReader.buildTableName(meta));
   }
 
   @Test
@@ -61,7 +102,7 @@ public class SQLStatementRecordReaderTest {
     when(meta.getTableName(2)).thenReturn("b");
     when(meta.getTableName(3)).thenReturn("a");
 
-    Assert.assertEquals("a_b", buildTableName(meta));
+    Assert.assertEquals("a_b", SQLStatementRecordReader.buildTableName(meta));
   }
 
   @Test
@@ -73,7 +114,7 @@ public class SQLStatementRecordReaderTest {
     when(meta.getTableName(2)).thenReturn("a");
     when(meta.getTableName(3)).thenReturn("a");
 
-    Assert.assertEquals("b_a", buildTableName(meta));
+    Assert.assertEquals("b_a", SQLStatementRecordReader.buildTableName(meta));
   }
 
   @Test
@@ -85,6 +126,6 @@ public class SQLStatementRecordReaderTest {
     when(meta.getTableName(2)).thenReturn("b");
     when(meta.getTableName(3)).thenReturn("a");
 
-    Assert.assertEquals("c_b_a", buildTableName(meta));
+    Assert.assertEquals("c_b_a", SQLStatementRecordReader.buildTableName(meta));
   }
 }
