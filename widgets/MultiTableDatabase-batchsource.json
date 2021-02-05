@@ -95,7 +95,7 @@
           "name": "tableAliases",
           "widget-attributes": {
             "delimiter": ";",
-            "value-placeholder": "Enter a SQL statement"
+            "value-placeholder": "Enter a Table Alias"
           }
         },
         {
