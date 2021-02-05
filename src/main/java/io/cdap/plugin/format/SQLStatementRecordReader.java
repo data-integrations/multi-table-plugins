@@ -24,7 +24,6 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.elasticsearch.common.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +170,7 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
 
   protected static String getTableName(SQLStatementSplit split, ResultSetMetaData resultMeta) throws SQLException {
     // Use table alias if available.
-    if (!Strings.isNullOrEmpty(split.getTableAlias())) {
+    if (!(split.getTableAlias() == null || split.getTableAlias().isEmpty())) {
       return split.getTableAlias();
     }
 

@@ -17,7 +17,6 @@
 package io.cdap.plugin.format;
 
 import org.apache.hadoop.mapreduce.lib.db.DBInputFormat;
-import org.elasticsearch.common.Strings;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -95,7 +94,7 @@ public class SQLStatementSplit extends DBInputFormat.DBInputSplit {
    * @return the statement identifier.
    */
   public String getId() {
-    if (!Strings.isNullOrEmpty(tableAlias)) {
+    if (!(tableAlias == null || tableAlias.isEmpty())) {
       return tableAlias;
     }
 

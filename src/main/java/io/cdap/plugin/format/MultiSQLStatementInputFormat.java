@@ -74,7 +74,7 @@ public class MultiSQLStatementInputFormat extends InputFormat<NullWritable, Reco
     }
 
 
-    for (int i = 1; i <= sqlStatements.size(); i++) {
+    for (int i = 0; i < sqlStatements.size(); i++) {
       SQLStatementSplit split = new SQLStatementSplit("Statement #" + (i + 1),
                                                       sqlStatements.get(i),
                                                       tableAliases.get(i),
