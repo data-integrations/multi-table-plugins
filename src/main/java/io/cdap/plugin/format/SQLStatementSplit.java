@@ -17,6 +17,7 @@
 package io.cdap.plugin.format;
 
 import org.apache.hadoop.mapreduce.lib.db.DBInputFormat;
+import org.elasticsearch.common.Strings;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -26,30 +27,41 @@ import java.io.IOException;
  * A split representing data in a database table.
  */
 public class SQLStatementSplit extends DBInputFormat.DBInputSplit {
-  private String statementId;
+  private String statementReferenceName;
   private String sqlStatement;
+  private String tableAlias;
+  private String fallbackTableName;
 
   // used by mapreduce
   public SQLStatementSplit() {
   }
 
-  public SQLStatementSplit(String statementName, String sqlStatement) {
-    this.statementId = statementName;
+  public SQLStatementSplit(String statementReferenceName,
+                           String sqlStatement,
+                           String tableAlias,
+                           String fallbackTableName) {
+    this.statementReferenceName = statementReferenceName;
     this.sqlStatement = sqlStatement;
+    this.tableAlias = tableAlias;
+    this.fallbackTableName = fallbackTableName;
   }
 
   @Override
   public void write(DataOutput out) throws IOException {
     super.write(out);
-    out.writeUTF(statementId);
+    out.writeUTF(statementReferenceName);
     out.writeUTF(sqlStatement);
+    out.writeUTF(tableAlias);
+    out.writeUTF(fallbackTableName);
   }
 
   @Override
   public void readFields(DataInput in) throws IOException {
     super.readFields(in);
-    this.statementId = in.readUTF();
+    this.statementReferenceName = in.readUTF();
     this.sqlStatement = in.readUTF();
+    this.tableAlias = in.readUTF();
+    this.fallbackTableName = in.readUTF();
   }
 
   @Override
@@ -62,11 +74,31 @@ public class SQLStatementSplit extends DBInputFormat.DBInputSplit {
     return 0;
   }
 
-  public String getStatementId() {
-    return statementId;
-  }
-
   public String getSqlStatement() {
     return sqlStatement;
+  }
+
+  public String getTableAlias() {
+    return tableAlias;
+  }
+
+  public String getFallbackTableName() {
+    return fallbackTableName;
+  }
+
+  /**
+   * Get a user-friendly statement identifier.
+   *
+   * If the user has specified a Table Alias, we use this value.
+   * Otherwise, the StatementIdentifier is the position on the statement in the list of supplied
+   * SQL statements.
+   * @return the statement identifier.
+   */
+  public String getId() {
+    if (!Strings.isNullOrEmpty(tableAlias)) {
+      return tableAlias;
+    }
+
+    return statementReferenceName;
   }
 }

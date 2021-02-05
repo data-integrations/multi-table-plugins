@@ -19,10 +19,14 @@ package io.cdap.plugin.format;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.DriverCleanup;
+import io.cdap.plugin.format.error.collector.ErrorCollectingMultiSQLStatementInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.elasticsearch.common.Strings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -34,13 +38,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
 
 /**
  * Record reader that executes a supplied SQL statement against a database.
  */
 public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordWrapper> {
+  private static final Logger LOG = LoggerFactory.getLogger(SQLStatementRecordReader.class);
+
   private final MultiTableConf dbConf;
   private final String tableNameField;
   private final DriverCleanup driverCleanup;
@@ -79,7 +83,7 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
         }
         results = statement.executeQuery(split.getSqlStatement());
         resultMeta = results.getMetaData();
-        tableName = buildTableName(resultMeta);
+        tableName = getTableName(split, resultMeta);
         tableFields = DBTypes.getSchemaFields(results);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
         schemaFields.add(Schema.Field.of(tableNameField, Schema.of(Schema.Type.STRING)));
@@ -163,6 +167,28 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
     if (exception != null) {
       throw new IOException(exception);
     }
+  }
+
+  protected static String getTableName(SQLStatementSplit split, ResultSetMetaData resultMeta) throws SQLException {
+    // Use table alias if available.
+    if (!Strings.isNullOrEmpty(split.getTableAlias())) {
+      return split.getTableAlias();
+    }
+
+    try {
+      // Try to determine table alias from the returned columns.
+      // This feature might not be available with all SQL drivers.
+      String metaTableName = buildTableName(resultMeta);
+      if (!metaTableName.isEmpty()) {
+        return metaTableName;
+      }
+    } catch (SQLException e) {
+      LOG.warn("Unable to determine table names from query results. " +
+                 "Use Table Aliases if possible.", e);
+    }
+
+    // Use the fallback if all else fails.
+    return split.getFallbackTableName();
   }
 
   protected static String buildTableName(ResultSetMetaData resultMeta) throws SQLException {

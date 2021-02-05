@@ -20,7 +20,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.cdap.cdap.api.annotation.Description;
 import io.cdap.cdap.api.annotation.Macro;
+import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
+import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.plugin.TransactionIsolationLevel;
 
 import java.sql.Connection;
@@ -45,6 +47,8 @@ public class MultiTableConf extends PluginConfig {
   public static final String ERROR_HANDLING_SKIP_TABLE = "skip-table";
   public static final String ERROR_HANDLING_SEND_TO_ERROR_PORT = "send-to-error-port";
   public static final String ERROR_HANDLING_FAIL_PIPELINE = "fail-pipeline";
+  public static final String NAME_TABLE_ALIASES = "tableAliases";
+  public static final String NAME_SQL_STATEMENTS = "sqlStatements";
 
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
   private String referenceName;
@@ -115,10 +119,19 @@ public class MultiTableConf extends PluginConfig {
   @Description("List of tables NOT to fetch from the database. By default NONE of the tables will be blocked")
   private String blackList;
 
+  @Name(NAME_SQL_STATEMENTS)
   @Macro
   @Nullable
   @Description("List of SQL statements to execute and fetch from the database.")
   private String sqlStatements;
+
+  @Name(NAME_TABLE_ALIASES)
+  @Macro
+  @Nullable
+  @Description("List of table name overrides for the supplied SQL Statements. These aliases will appear as the " +
+    "'Table Name Field' for each of the supplied statements. Leave empty for the application to assign table names " +
+    "automatically based on the supplied queries. If specified, each SQL statement needs to have an alias.")
+  private String tableAliases;
 
   @Macro
   @Nullable
@@ -154,6 +167,15 @@ public class MultiTableConf extends PluginConfig {
     this.referenceName = referenceName;
   }
 
+  public void validate(FailureCollector collector) {
+    if (DATA_SELECTION_MODE_SQL_STATEMENTS.equals(getDataSelectionMode())
+      && getTableAliases().size() > 0
+      && getSqlStatements().size() != getTableAliases().size()) {
+      collector.addFailure("Incorrect number of Table Aliases.",
+                           "Ensure the number of Table Aliases matches the number of SQL statements.")
+        .withConfigProperty(NAME_TABLE_ALIASES);
+    }
+  }
 
   public String getReferenceName() {
     return referenceName;
@@ -249,10 +271,28 @@ public class MultiTableConf extends PluginConfig {
     return new ArrayList<>();
   }
 
+  public List<String> getTableAliases() {
+    if (tableAliases != null) {
+      return splitTableAliases(tableAliases);
+    }
+    return new ArrayList<>();
+  }
+
   protected static List<String> splitSqlStatements(String statements) {
     String regex = "(?<!\\\\)" + Pattern.quote(SQL_STATEMENT_SEPARATOR);
 
-    return Stream.of(statements.split(regex))
+    return Stream.of(statements.trim().split(regex))
+      .map(Strings::nullToEmpty)
+      .filter(s -> !s.isEmpty())
+      .map(s -> s.replace("\\;", ";"))
+      .map(String::trim)
+      .collect(Collectors.toList());
+  }
+
+  protected static List<String> splitTableAliases(String tableAliases) {
+    String regex = "(?<!\\\\)" + Pattern.quote(SQL_STATEMENT_SEPARATOR);
+
+    return Stream.of(tableAliases.trim().split(regex))
       .map(Strings::nullToEmpty)
       .filter(s -> !s.isEmpty())
       .map(s -> s.replace("\\;", ";"))

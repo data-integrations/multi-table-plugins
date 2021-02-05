@@ -90,6 +90,15 @@
           }
         },
         {
+          "widget-type": "csv",
+          "label": "Table Aliases",
+          "name": "tableAliases",
+          "widget-attributes": {
+            "delimiter": ";",
+            "value-placeholder": "Enter a SQL statement"
+          }
+        },
+        {
           "widget-type": "textbox",
           "label": "Table Name Field",
           "name": "tableNameField"
@@ -209,6 +218,9 @@
       "show": [
         {
           "name": "sqlStatements"
+        },
+        {
+          "name": "tableAliases"
         }
       ]
     }
