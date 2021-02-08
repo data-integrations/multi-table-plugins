@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.sql.Driver;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -74,13 +75,13 @@ public class MultiSQLStatementInputFormat extends InputFormat<NullWritable, Reco
     List<String> tableAliases = conf.getTableAliases();
     List<InputSplit> resultSplits = new ArrayList<>();
 
-    //Handle the case where there are not enough table aliases for all SQL statements.
-    //In this case, we use as many aliases as possible and then fall back to the default logiv.
+    // Handle the case where there are not enough table aliases for all SQL statements.
+    // In this case, we use as many aliases as possible and then fall back to the default logic.
     if (tableAliases.size() < sqlStatements.size()) {
-      tableAliases = new LinkedList<>(tableAliases);
-      while (tableAliases.size() < sqlStatements.size()) {
-        tableAliases.add("");
-      }
+      List<String> newTableAliases = new ArrayList<>(sqlStatements.size());
+      newTableAliases.addAll(tableAliases);
+      newTableAliases.addAll(Collections.nCopies(sqlStatements.size() - tableAliases.size(), ""));
+      tableAliases = newTableAliases;
     }
 
 
