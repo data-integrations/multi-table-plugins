@@ -25,7 +25,6 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.Emitter;
-import io.cdap.cdap.etl.api.FailureCollector;
 import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.batch.BatchSource;
@@ -81,10 +80,6 @@ public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper,
                         "Please make sure that the driver plugin has been installed correctly.",
                       conf.getJdbcPluginName()));
     }
-
-    FailureCollector failureCollector = pipelineConfigurer.getStageConfigurer().getFailureCollector();
-    conf.validate(failureCollector);
-    failureCollector.getOrThrowException();
 
     pipelineConfigurer.getStageConfigurer().setOutputSchema(null);
   }

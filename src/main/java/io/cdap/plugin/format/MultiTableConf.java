@@ -167,16 +167,6 @@ public class MultiTableConf extends PluginConfig {
     this.referenceName = referenceName;
   }
 
-  public void validate(FailureCollector collector) {
-    if (DATA_SELECTION_MODE_SQL_STATEMENTS.equals(getDataSelectionMode())
-      && getTableAliases().size() > 0
-      && getSqlStatements().size() != getTableAliases().size()) {
-      collector.addFailure("Incorrect number of Table Aliases.",
-                           "Ensure the number of Table Aliases matches the number of SQL statements.")
-        .withConfigProperty(NAME_TABLE_ALIASES);
-    }
-  }
-
   public String getReferenceName() {
     return referenceName;
   }
