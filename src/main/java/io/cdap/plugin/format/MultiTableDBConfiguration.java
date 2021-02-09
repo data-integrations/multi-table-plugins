@@ -66,23 +66,23 @@ public class MultiTableDBConfiguration extends DBConfiguration {
   }
 
   public MultiTableConf getPluginConf() {
-    return GSON.fromJson(getConf().get(PLUGIN_CONF_FIELD), PLUGIN_CONF_TYPE);
+    return GSON.fromJson(getConf().getRaw(PLUGIN_CONF_FIELD), PLUGIN_CONF_TYPE);
   }
 
   public String getDriverName() {
-    return getConf().get(DRIVER_FIELD);
+    return getConf().getRaw(DRIVER_FIELD);
   }
 
   public List<DBTableInfo> getTableInfos() {
-    return GSON.fromJson(getConf().get(INFO_FIELD), INFO_TYPE);
+    return GSON.fromJson(getConf().getRaw(INFO_FIELD), INFO_TYPE);
   }
 
   public List<String> getSqlStatements() {
-    return GSON.fromJson(getConf().get(SQL_STATEMENTS_FIELD), SQL_STATEMENTS_TYPE);
+    return GSON.fromJson(getConf().getRaw(SQL_STATEMENTS_FIELD), SQL_STATEMENTS_TYPE);
   }
 
   public List<String> getTableAliases() {
-    return GSON.fromJson(getConf().get(TABLE_ALIASES_FIELD), TABLE_ALIASES_TYPE);
+    return GSON.fromJson(getConf().getRaw(TABLE_ALIASES_FIELD), TABLE_ALIASES_TYPE);
   }
 
   private void set(String key, String value) {
