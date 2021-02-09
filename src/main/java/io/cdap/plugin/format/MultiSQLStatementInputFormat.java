@@ -16,6 +16,7 @@
 
 package io.cdap.plugin.format;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.cdap.plugin.DriverCleanup;
 import io.cdap.plugin.Drivers;
 import io.cdap.plugin.format.error.collector.ErrorCollectingRecordReader;
@@ -30,10 +31,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.Connection;
 import java.sql.Driver;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -41,6 +43,8 @@ import java.util.List;
  */
 public class MultiSQLStatementInputFormat extends InputFormat<NullWritable, RecordWrapper> {
   private static final Logger LOG = LoggerFactory.getLogger(MultiSQLStatementInputFormat.class);
+  private static final String STATEMENT_REFERENCE_NAME_FORMAT = "Statement #%d";
+  private static final String FALLBACK_TABLE_NAME_FORMAT = "sql_statement_%d";
 
   /**
    * Configure the input format to read tables from a database. Should be called from the mapreduce client.
@@ -62,23 +66,30 @@ public class MultiSQLStatementInputFormat extends InputFormat<NullWritable, Reco
   public List<InputSplit> getSplits(JobContext context) throws IOException {
     MultiTableDBConfiguration conf = new MultiTableDBConfiguration(context.getConfiguration());
 
+    return getSplits(conf);
+  }
+
+  @VisibleForTesting
+  protected List<InputSplit> getSplits(MultiTableDBConfiguration conf) {
     List<String> sqlStatements = conf.getSqlStatements();
     List<String> tableAliases = conf.getTableAliases();
     List<InputSplit> resultSplits = new ArrayList<>();
 
-    if (tableAliases.size() == 0) {
-      tableAliases = new ArrayList<>(sqlStatements.size());
-      while (tableAliases.size() < sqlStatements.size()) {
-        tableAliases.add("");
-      }
+    // Handle the case where there are not enough table aliases for all SQL statements.
+    // In this case, we use as many aliases as possible and then fall back to the default logic.
+    if (tableAliases.size() < sqlStatements.size()) {
+      List<String> newTableAliases = new ArrayList<>(sqlStatements.size());
+      newTableAliases.addAll(tableAliases);
+      newTableAliases.addAll(Collections.nCopies(sqlStatements.size() - tableAliases.size(), ""));
+      tableAliases = newTableAliases;
     }
 
 
     for (int i = 0; i < sqlStatements.size(); i++) {
-      SQLStatementSplit split = new SQLStatementSplit("Statement #" + (i + 1),
+      SQLStatementSplit split = new SQLStatementSplit(String.format(STATEMENT_REFERENCE_NAME_FORMAT, i + 1),
                                                       sqlStatements.get(i),
                                                       tableAliases.get(i),
-                                                      "sql_statement_" + (i + 1));
+                                                      String.format(FALLBACK_TABLE_NAME_FORMAT, i + 1));
       resultSplits.add(split);
     }
 
