@@ -66,9 +66,6 @@ public class DBTypes {
   // given a sql type return schema type
   private static Schema getSchema(ResultSetMetaData metadata, int column) throws SQLException {
     int sqlType = metadata.getColumnType(column);
-
-    // Type.STRING covers sql types - VARCHAR,CHAR,CLOB,LONGNVARCHAR,LONGVARCHAR,NCHAR,NCLOB,NVARCHAR
-    Schema schema = Schema.of(Schema.Type.STRING);
     switch (sqlType) {
       case Types.NULL:
         return Schema.of(Schema.Type.NULL);
@@ -104,25 +101,28 @@ public class DBTypes {
       case Types.TIMESTAMP:
         return Schema.of(Schema.LogicalType.TIMESTAMP_MICROS);
 
+      case Types.VARCHAR:
+      case Types.CHAR:
+      case Types.CLOB:
+      case Types.LONGNVARCHAR:
+      case Types.LONGVARCHAR:
+      case Types.NCHAR:
+      case Types.NCLOB:
+      case Types.NVARCHAR:
+        return Schema.of(Schema.Type.STRING);
+
       case Types.BINARY:
       case Types.VARBINARY:
       case Types.LONGVARBINARY:
       case Types.BLOB:
         return Schema.of(Schema.Type.BYTES);
 
-      case Types.ARRAY:
-      case Types.DATALINK:
-      case Types.DISTINCT:
-      case Types.JAVA_OBJECT:
-      case Types.OTHER:
-      case Types.REF:
-      case Types.ROWID:
-      case Types.SQLXML:
-      case Types.STRUCT:
-        throw new SQLException(new UnsupportedTypeException("Unsupported SQL Type: " + sqlType));
+      // Unsupported Types: ARRAY, DATALINK, DISTINCT, JAVA_OBJECT, OTHER, REF, ROWID, SQLXML, STRUCT
+      default:
+        throw new SQLException(new UnsupportedTypeException("Unsupported SQL Type: " + sqlType + " for column '"
+                                                              + metadata.getColumnName(column) + "' with type '"
+                                                              + metadata.getColumnTypeName(column) + "'"));
     }
-
-    return schema;
   }
 
   public static StructuredRecord.Builder setValue(StructuredRecord.Builder record, int sqlColumnType,
