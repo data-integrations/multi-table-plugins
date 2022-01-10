@@ -90,6 +90,13 @@ public class DBTypes {
       case Types.DECIMAL:
         int precision = metadata.getPrecision(column);
         int scale = metadata.getScale(column);
+        String typeName = metadata.getColumnTypeName(column);
+        // decimal type with precision 0 is not supported
+        if (precision == 0) {
+          throw new SQLException(new UnsupportedTypeException(
+            String.format("Column %s has unsupported SQL Type: '%s' with precision: '%s'", column,
+                          typeName, precision)));
+        }
         return Schema.decimalOf(precision, scale);
       case Types.DOUBLE:
         return Schema.of(Schema.Type.DOUBLE);
@@ -126,7 +133,8 @@ public class DBTypes {
   }
 
   public static StructuredRecord.Builder setValue(StructuredRecord.Builder record, int sqlColumnType,
-                                                  ResultSet resultSet, String fieldName) throws SQLException {
+                                                  ResultSet resultSet, String fieldName,
+                                                  int precision, int scale) throws SQLException {
     Object original = resultSet.getObject(fieldName);
     if (original != null) {
       switch (sqlColumnType) {
@@ -135,7 +143,7 @@ public class DBTypes {
           return record.set(fieldName, ((Number) original).intValue());
         case Types.NUMERIC:
         case Types.DECIMAL:
-          return record.setDecimal(fieldName, ((BigDecimal) original));
+          return record.setDecimal(fieldName, resultSet.getBigDecimal(fieldName, scale));
         case Types.DATE:
           return record.setDate(fieldName, resultSet.getDate(fieldName).toLocalDate());
         case Types.TIME:
