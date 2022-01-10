@@ -108,7 +108,9 @@ public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrappe
       for (int i = 0; i < tableFields.size(); i++) {
         Schema.Field field = tableFields.get(i);
         int sqlColumnType = resultMeta.getColumnType(i + 1);
-        DBTypes.setValue(recordBuilder, sqlColumnType, results, field.getName());
+        int sqlPrecision = resultMeta.getPrecision(i + 1);
+        int sqlScale = resultMeta.getScale(i + 1);
+        DBTypes.setValue(recordBuilder, sqlColumnType, results, field.getName(), sqlPrecision, sqlScale);
       }
     } catch (SQLException e) {
       throw new IOException("Error decoding row from table " + tableName, e);
