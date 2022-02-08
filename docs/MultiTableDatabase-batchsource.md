@@ -80,6 +80,9 @@ Defaults to TRANSACTION_SERIALIZABLE. See java.sql.Connection#setTransactionIsol
 The Phoenix jdbc driver will throw an exception if the Phoenix database does not have transactions enabled
 and this setting is set to true. For drivers like that, this should be set to TRANSACTION_NONE.
 
+**Fetch Size:** The number of rows to fetch at a time per split. Larger fetch size can result in faster import,
+with the tradeoff of higher memory usage.
+
 ### Custom SQL Statements
 
 When using the **Data Selection Mode** called **SQL Statements**, the supplied list of SQL statements will be executed 
