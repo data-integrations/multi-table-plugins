@@ -104,9 +104,20 @@
           "name": "tableNameField"
         },
         {
-          "widget-type": "textbox",
+          "widget-type": "toggle",
           "label": "Enable Auto Commit",
-          "name": "enableAutoCommit"
+          "name": "enableAutoCommit",
+          "widget-attributes" : {
+            "on": {
+              "value": "true",
+              "label": "YES"
+            },
+            "off": {
+              "value": "false",
+              "label": "NO"
+            },
+            "default": "false"
+          }
         },
         {
           "widget-type": "textbox",
@@ -114,6 +125,15 @@
           "name": "splitsPerTable",
           "widget-attributes": {
             "default": "1"
+          }
+        },
+        {
+          "widget-type": "number",
+          "label": "Fetch Size",
+          "name": "fetchSize",
+          "widget-attributes": {
+            "default": "1000",
+            "minimum": "0"
           }
         },
         {
