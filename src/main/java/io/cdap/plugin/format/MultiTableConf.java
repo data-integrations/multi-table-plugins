@@ -23,6 +23,7 @@ import io.cdap.cdap.api.annotation.Macro;
 import io.cdap.cdap.api.annotation.Name;
 import io.cdap.cdap.api.plugin.PluginConfig;
 import io.cdap.cdap.etl.api.FailureCollector;
+import io.cdap.plugin.NoOpCommitConnection;
 import io.cdap.plugin.TransactionIsolationLevel;
 
 import java.sql.Connection;
@@ -49,6 +50,7 @@ public class MultiTableConf extends PluginConfig {
   public static final String ERROR_HANDLING_FAIL_PIPELINE = "fail-pipeline";
   public static final String NAME_TABLE_ALIASES = "tableAliases";
   public static final String NAME_SQL_STATEMENTS = "sqlStatements";
+  public static final String FETCH_SIZE = "fetchSize";
 
   @Description("This will be used to uniquely identify this source for lineage, annotating metadata, etc.")
   private String referenceName;
@@ -81,6 +83,13 @@ public class MultiTableConf extends PluginConfig {
     "auto commit, or a driver that does not support the commit call. For example, the Hive jdbc driver will throw " +
     "an exception whenever a commit is called. For drivers like that, this should be set to true.")
   private Boolean enableAutoCommit;
+
+  @Nullable
+  @Name(FETCH_SIZE)
+  @Macro
+  @Description("The number of rows to fetch at a time per split. Larger fetch size can result in faster import, " +
+    "with the tradeoff of higher memory usage.")
+  private Integer fetchSize;
 
   @Macro
   @Nullable
@@ -297,8 +306,15 @@ public class MultiTableConf extends PluginConfig {
   public Connection getConnection() throws SQLException {
     Connection conn = user == null ?
       DriverManager.getConnection(connectionString) : DriverManager.getConnection(connectionString, user, password);
-    conn.setAutoCommit(enableAutoCommit);
+    conn.setAutoCommit(getEnableAutoCommit());
     conn.setTransactionIsolation(TransactionIsolationLevel.getLevel(transactionIsolationLevel));
+    if (getEnableAutoCommit()) {
+      // hack to work around jdbc drivers like the hive driver that throw exceptions on commit
+      conn = new NoOpCommitConnection(conn);
+    }
+    if (fetchSize != null && fetchSize > 0) {
+      conn = new ConnectionWithFetchSize(conn, fetchSize);
+    }
     return conn;
   }
 }
