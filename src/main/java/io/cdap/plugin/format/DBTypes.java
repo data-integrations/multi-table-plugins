@@ -21,7 +21,6 @@ import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.data.schema.UnsupportedTypeException;
 
-import java.math.BigDecimal;
 import java.sql.Blob;
 import java.sql.Clob;
 import java.sql.ResultSet;
@@ -63,9 +62,17 @@ public class DBTypes {
     return schemaFields;
   }
 
-  // given a sql type return schema type
+  /**
+   * Given the metadata and column number, return the Schema type corresponding to the SQL type.
+   *
+   * Note that the BIGINT SQL type can be signed or unsigned. An unsigned BIGINT will be mapped to a Decimal type while
+   * a signed BIGINT will be mapped to a Long. This distinction has to be made for backward compatibility reasons.
+   *
+   * @throws SQLException for unsupported types.
+   */
   private static Schema getSchema(ResultSetMetaData metadata, int column) throws SQLException {
     int sqlType = metadata.getColumnType(column);
+    String typeName = metadata.getColumnTypeName(column);
     switch (sqlType) {
       case Types.NULL:
         return Schema.of(Schema.Type.NULL);
@@ -80,7 +87,11 @@ public class DBTypes {
         return Schema.of(Schema.Type.INT);
 
       case Types.BIGINT:
-        return Schema.of(Schema.Type.LONG);
+        if (typeName.toLowerCase().contains("unsigned")) {
+          return getDecimalSafe(metadata, column, typeName);
+        } else {
+          return Schema.of(Schema.Type.LONG);
+        }
 
       case Types.REAL:
       case Types.FLOAT:
@@ -88,16 +99,7 @@ public class DBTypes {
 
       case Types.NUMERIC:
       case Types.DECIMAL:
-        int precision = metadata.getPrecision(column);
-        int scale = metadata.getScale(column);
-        String typeName = metadata.getColumnTypeName(column);
-        // decimal type with precision 0 is not supported
-        if (precision == 0) {
-          throw new SQLException(new UnsupportedTypeException(
-            String.format("Column %s has unsupported SQL Type: '%s' with precision: '%s'", column,
-                          typeName, precision)));
-        }
-        return Schema.decimalOf(precision, scale);
+        return getDecimalSafe(metadata, column, typeName);
       case Types.DOUBLE:
         return Schema.of(Schema.Type.DOUBLE);
 
@@ -130,6 +132,18 @@ public class DBTypes {
                                                               + metadata.getColumnName(column) + "' with type '"
                                                               + metadata.getColumnTypeName(column) + "'"));
     }
+  }
+
+  private static Schema getDecimalSafe(ResultSetMetaData metadata, int column, String typeName) throws SQLException {
+    int precision = metadata.getPrecision(column);
+    int scale = metadata.getScale(column);
+    // decimal type with precision 0 is not supported
+    if (precision == 0) {
+      throw new SQLException(new UnsupportedTypeException(
+          String.format("Column %s has unsupported SQL Type: '%s' with precision: '%s'", column,
+              typeName, precision)));
+    }
+    return Schema.decimalOf(precision, scale);
   }
 
   public static StructuredRecord.Builder setValue(StructuredRecord.Builder record, int sqlColumnType,
