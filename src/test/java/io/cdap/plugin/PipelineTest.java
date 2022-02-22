@@ -136,7 +136,7 @@ public class PipelineTest extends HydratorTestBase {
       stmt.execute("CREATE TABLE \"MULTI2\" (NAME VARCHAR(32) NOT NULL, EMAIL VARCHAR(64))");
       stmt.execute("INSERT INTO \"MULTI2\" VALUES ('samuel', 'sj@example.com'), ('dwayne', 'rock@j.com')");
 
-      stmt.execute("CREATE TABLE \"MULTI3\" (ITEM VARCHAR(32) NOT NULL, CODE INT)");
+      stmt.execute("CREATE TABLE \"MULTI3\" (ITEM VARCHAR(32) NOT NULL, CODE BIGINT)");
       stmt.execute("INSERT INTO \"MULTI3\" VALUES ('donut', 100), ('scotch', 707)");
 
       stmt.execute("CREATE TABLE \"BLACKLIST1\" (ITEM VARCHAR(32) NOT NULL, CODE INT)");
@@ -209,7 +209,7 @@ public class PipelineTest extends HydratorTestBase {
     Schema schema3 = Schema.recordOf(
       "MULTI3",
       Schema.Field.of("ITEM", Schema.of(Schema.Type.STRING)),
-      Schema.Field.of("CODE", Schema.nullableOf(Schema.of(Schema.Type.INT))),
+      Schema.Field.of("CODE", Schema.nullableOf(Schema.of(Schema.Type.LONG))),
       Schema.Field.of("tablename", Schema.of(Schema.Type.STRING)));
 
     DataSetManager<Table> outputManager = getDataset("multiOutput");
@@ -224,8 +224,8 @@ public class PipelineTest extends HydratorTestBase {
         .set("tablename", "MULTI2").build(),
       StructuredRecord.builder(schema2).set("NAME", "dwayne").set("EMAIL", "rock@j.com")
         .set("tablename", "MULTI2").build(),
-      StructuredRecord.builder(schema3).set("ITEM", "donut").set("CODE", 100).set("tablename", "MULTI3").build(),
-      StructuredRecord.builder(schema3).set("ITEM", "scotch").set("CODE", 707).set("tablename", "MULTI3").build());
+      StructuredRecord.builder(schema3).set("ITEM", "donut").set("CODE", 100L).set("tablename", "MULTI3").build(),
+      StructuredRecord.builder(schema3).set("ITEM", "scotch").set("CODE", 707L).set("tablename", "MULTI3").build());
     Assert.assertEquals(actual.size(), outputRecords.size());
     Assert.assertEquals(expected, actual);
   }
