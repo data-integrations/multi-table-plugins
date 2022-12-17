@@ -28,7 +28,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <cdap.version>6.8.0-SNAPSHOT</cdap.version>
-    <hadoop.version>2.3.0</hadoop.version>
+    <hadoop.version>2.10.2</hadoop.version>
     <hsql.version>2.2.4</hsql.version>
     <hydrator.version>2.9.0-SNAPSHOT</hydrator.version>
     <!-- properties for script build step that creates the config files for the artifacts -->
@@ -81,6 +81,12 @@
       <artifactId>hydrator-test</artifactId>
       <version>${cdap.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>log4j</groupId>
+          <artifactId>log4j</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
