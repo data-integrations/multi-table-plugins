@@ -22,6 +22,7 @@ import io.cdap.cdap.api.annotation.Plugin;
 import io.cdap.cdap.api.data.batch.Input;
 import io.cdap.cdap.api.data.batch.InputFormatProvider;
 import io.cdap.cdap.api.data.format.StructuredRecord;
+import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.api.dataset.lib.KeyValue;
 import io.cdap.cdap.api.plugin.PluginProperties;
 import io.cdap.cdap.etl.api.Emitter;
@@ -29,6 +30,8 @@ import io.cdap.cdap.etl.api.PipelineConfigurer;
 import io.cdap.cdap.etl.api.action.SettableArguments;
 import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.cdap.etl.api.batch.BatchSourceContext;
+import io.cdap.plugin.common.Asset;
+import io.cdap.plugin.common.LineageRecorder;
 import io.cdap.plugin.common.SourceInputFormatProvider;
 import io.cdap.plugin.format.DBTableInfo;
 import io.cdap.plugin.format.MultiSQLStatementInputFormat;
@@ -39,6 +42,7 @@ import io.cdap.plugin.format.error.TableFailureException;
 import io.cdap.plugin.format.error.collector.ErrorCollectingMultiSQLStatementInputFormat;
 import io.cdap.plugin.format.error.collector.ErrorCollectingMultiTableDBInputFormat;
 import io.cdap.plugin.format.error.emitter.ErrorEmittingInputFormat;
+import io.cdap.plugin.util.FQNGenerator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.slf4j.Logger;
@@ -49,6 +53,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Batch source to read from multiple tables in a database using JDBC.
@@ -158,12 +163,27 @@ public class MultiTableDBSource extends BatchSource<NullWritable, RecordWrapper,
 
     SettableArguments arguments = context.getArguments();
     for (DBTableInfo tableInfo : tables) {
+      Schema schema = tableInfo.getSchema();
       arguments.set(DynamicMultiFilesetSink.TABLE_PREFIX + tableInfo.getDbTableName().getTable(),
-                    tableInfo.getSchema().toString());
+                    schema.toString());
+      emitLineage(context, tableInfo, schema);
     }
 
     context.setInput(Input.of(conf.getReferenceName(),
                               new SourceInputFormatProvider(ErrorCollectingMultiTableDBInputFormat.class, hConf)));
+  }
+
+  private void emitLineage(BatchSourceContext context, DBTableInfo tableInfo, Schema schema) {
+    Asset asset = Asset.builder(conf.getReferenceName())
+      .setFqn(FQNGenerator.constructFQN(conf.getConnectionString(), tableInfo.getDbTableName().getTable()))
+      .setMarker(tableInfo.getDbTableName().getTable()).build();
+    LineageRecorder lineageRecorder = new LineageRecorder(context, asset);
+    lineageRecorder.createExternalDataset(schema);
+    if (schema != null && schema.getFields() != null) {
+      String operationName = "Read_from_" + tableInfo.getDbTableName().getTable();
+      lineageRecorder.recordRead(operationName, "Read from database plugin",
+                                 schema.getFields().stream().map(Schema.Field::getName).collect(Collectors.toList()));
+    }
   }
 
   public void setContextForMultiSQLStatementInput(BatchSourceContext context,
