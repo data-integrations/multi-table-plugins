@@ -18,8 +18,10 @@ package io.cdap.plugin.format;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.plugin.DriverCleanup;
 import io.cdap.plugin.Drivers;
+import io.cdap.plugin.common.db.DBUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -274,7 +276,10 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, RecordWra
   private static Schema getTableSchema(String table, Connection connection) throws SQLException {
     try (Statement statement = connection.createStatement()) {
       try (ResultSet results = statement.executeQuery("SELECT * FROM " + table + " WHERE 1 = 0")) {
-        return Schema.recordOf(table, DBTypes.getSchemaFields(results));
+        return Schema.recordOf(table,
+                DBUtils.getSchemaReader(connection.getMetaData().getDatabaseProductName(),
+                                BatchSource.PLUGIN_TYPE, null)
+                        .getSchemaFields(results, null, null));
       }
     }
   }

@@ -18,7 +18,9 @@ package io.cdap.plugin.format;
 
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
+import io.cdap.cdap.etl.api.batch.BatchSource;
 import io.cdap.plugin.DriverCleanup;
+import io.cdap.plugin.common.db.DBUtils;
 import io.cdap.plugin.format.error.collector.ErrorCollectingMultiSQLStatementInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -83,7 +85,10 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
         results = statement.executeQuery(split.getSqlStatement());
         resultMeta = results.getMetaData();
         tableName = getTableName(split, resultMeta);
-        tableFields = DBTypes.getSchemaFields(results);
+        tableFields =
+                DBUtils.getSchemaReader(connection.getMetaData().getDatabaseProductName(),
+                                        BatchSource.PLUGIN_TYPE, null)
+                        .getSchemaFields(results, null, null);
         List<Schema.Field> schemaFields = new ArrayList<>(tableFields);
         schemaFields.add(Schema.Field.of(tableNameField, Schema.of(Schema.Type.STRING)));
         schema = Schema.recordOf(tableName, schemaFields);
@@ -106,20 +111,15 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
 
   @Override
   public RecordWrapper getCurrentValue() throws IOException {
-    StructuredRecord.Builder recordBuilder = StructuredRecord.builder(schema)
-      .set(tableNameField, tableName);
     try {
-      for (int i = 0; i < tableFields.size(); i++) {
-        Schema.Field field = tableFields.get(i);
-        int sqlColumnType = resultMeta.getColumnType(i + 1);
-        int sqlPrecision = resultMeta.getPrecision(i + 1);
-        int sqlScale = resultMeta.getScale(i + 1);
-        DBTypes.setValue(recordBuilder, sqlColumnType, results, field.getName(), sqlPrecision, sqlScale);
-      }
+      String dbProductName = results.getStatement().getConnection().getMetaData().getDatabaseProductName();
+      StructuredRecord.Builder recordBuilder =
+              DBUtils.getRecordReaderHelper(dbProductName).getRecordBuilder(results, schema);
+      recordBuilder.set(tableNameField, tableName);
+      return new RecordWrapper(recordBuilder.build());
     } catch (SQLException e) {
       throw new IOException("Error decoding row from statement : '%s'", e);
     }
-    return new RecordWrapper(recordBuilder.build());
   }
 
   @Override
