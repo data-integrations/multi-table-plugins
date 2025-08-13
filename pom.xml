@@ -30,7 +30,7 @@
     <cdap.version>6.8.0</cdap.version>
     <hadoop.version>2.10.2</hadoop.version>
     <hsql.version>2.2.4</hsql.version>
-    <hydrator.version>2.11.0-SNAPSHOT</hydrator.version>
+    <hydrator.version>2.11.0</hydrator.version>
     <!-- properties for script build step that creates the config files for the artifacts -->
     <widgets.dir>widgets</widgets.dir>
     <docs.dir>docs</docs.dir>
@@ -44,21 +44,10 @@
 
   <repositories>
     <repository>
-      <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/groups/public</url>
-    </repository>
-    <repository>
       <id>sonatype-snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+      <url>https://central.sonatype.com/repository/maven-snapshots</url>
     </repository>
   </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/groups/public</url>
-    </pluginRepository>
-  </pluginRepositories>
 
   <dependencies>
     <dependency>
