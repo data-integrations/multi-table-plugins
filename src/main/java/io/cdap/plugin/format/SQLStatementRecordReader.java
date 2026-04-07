@@ -19,7 +19,6 @@ package io.cdap.plugin.format;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.plugin.DriverCleanup;
-import io.cdap.plugin.format.error.collector.ErrorCollectingMultiSQLStatementInputFormat;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -89,6 +88,9 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
         schema = Schema.recordOf(tableName, schemaFields);
       }
       if (!results.next()) {
+        if (pos == 0) {
+          LOG.warn("SQL statement '{}' returned no records.", split.getSqlStatement());
+        }
         return false;
       }
 
