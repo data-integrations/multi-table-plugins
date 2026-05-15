@@ -196,6 +196,9 @@ public class MultiTableDBInputFormat extends InputFormat<NullWritable, RecordWra
                                                                          columnName,
                                                                          conf.getPluginConf().getWhereClause()))) {
       results.next();
+      if (results.getObject(1) == null && results.getObject(2) == null) {
+        return Collections.singletonList(new DBTableSplit(info.getDbTableName()));
+      }
 
       // Based on the type of the results, use a different mechanism
       // for interpolating split points (i.e., numeric splits, text splits,

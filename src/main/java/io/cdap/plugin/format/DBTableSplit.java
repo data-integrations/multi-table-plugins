@@ -26,7 +26,7 @@ import java.io.IOException;
  * A split representing data in a database table.
  */
 public class DBTableSplit extends DataDrivenDBInputFormat.DataDrivenDBInputSplit {
-  private static final String DEFAULT_CLAUSE = "1=1";
+  public static final String DEFAULT_CLAUSE = "1=1";
 
   private DBTableName tableName;
 
