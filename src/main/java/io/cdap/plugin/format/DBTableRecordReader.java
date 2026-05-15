@@ -24,6 +24,8 @@ import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -38,6 +40,8 @@ import java.util.List;
  * Record reader that reads the entire contents of a database table using JDBC.
  */
 public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrapper> {
+  private static final Logger LOG = LoggerFactory.getLogger(DBTableRecordReader.class);
+
   private final DBTableName tableName;
   private final String tableNameField;
   private final MultiTableConf dbConf;
@@ -85,6 +89,10 @@ public class DBTableRecordReader extends RecordReader<NullWritable, RecordWrappe
         schema = Schema.recordOf(tableName.getTable(), schemaFields);
       }
       if (!results.next()) {
+        if (pos == 0 && DBTableSplit.DEFAULT_CLAUSE.equals(split.getLowerClause())
+          && DBTableSplit.DEFAULT_CLAUSE.equals(split.getUpperClause())) {
+          LOG.info("Source table '{}' has zero records.", tableName.fullTableName());
+        }
         return false;
       }
 
