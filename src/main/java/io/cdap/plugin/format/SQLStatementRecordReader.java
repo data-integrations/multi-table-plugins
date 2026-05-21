@@ -89,6 +89,9 @@ public class SQLStatementRecordReader extends RecordReader<NullWritable, RecordW
         schema = Schema.recordOf(tableName, schemaFields);
       }
       if (!results.next()) {
+        if (pos == 0) {
+          LOG.info("SQL statement '{}' ('{}') has zero records.", split.getId(), split.getSqlStatement());
+        }
         return false;
       }
 
